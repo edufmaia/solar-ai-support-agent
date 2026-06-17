@@ -1,0 +1,326 @@
+﻿# Solar AI Support Agent
+
+Agente de IA para atendimento inicial, qualificação de leads e pré-análise geoespacial para empresas de energia solar.
+
+## Status atual
+
+O projeto já possui:
+
+- API FastAPI mínima com `GET /health`
+- configuração Docker para backend, PostgreSQL e Redis
+- schema inicial em `database/schema.sql`
+- camada de conexão com PostgreSQL
+- endpoint `GET /health/db`
+- utilitários para aplicar o schema no banco
+- repositories básicos para `leads`, `conversations` e `messages`
+- endpoint `POST /chat` com orquestrador de conversa
+- repository de `agent_events` com rastreabilidade básica
+- serviço mockado de extração de lead
+- serviço mockado de scoring de lead
+- camada abstrata de LLM com `BaseLLMProvider`
+- `MockLLMProvider`
+- `OpenAIProvider` usando a Responses API
+- factory simples para escolher provider por variável de ambiente
+
+## Stack
+
+- Python 3.12
+- FastAPI
+- PostgreSQL
+- Redis
+- SQLAlchemy
+- OpenAI Python SDK
+- Docker Compose
+
+## Estrutura principal
+
+```text
+backend/
+  app/
+    agents/
+    api/
+    config/
+    llm/
+    repositories/
+    schemas/
+    services/
+    tools/
+  tests/
+
+database/
+  migrations/
+  schema.sql
+  apply_schema.ps1
+  apply_schema.sh
+
+docs/
+  specs/
+    001-solar-ai-support-agent/
+```
+
+## Configuração de ambiente
+
+Use `.env.example` como referência.
+
+### Banco no Docker
+
+```env
+DATABASE_HOST=postgres
+DATABASE_PORT=5432
+DATABASE_NAME=solar_ai_support
+DATABASE_USER=solar
+DATABASE_PASSWORD=solar_password
+DATABASE_URL=postgresql+psycopg://solar:solar_password@postgres:5432/solar_ai_support
+```
+
+### Seleção de provider de LLM
+
+```env
+LLM_PROVIDER=mock
+OPENAI_API_KEY=
+OPENAI_MODEL=gpt-4o-mini
+OPENAI_INPUT_PRICE_PER_1M_TOKENS=0.15
+OPENAI_OUTPUT_PRICE_PER_1M_TOKENS=0.60
+```
+
+Observações:
+
+- `LLM_PROVIDER` aceita atualmente `mock` e `openai`.
+- Se `LLM_PROVIDER=openai` e `OPENAI_API_KEY` não estiver definida, `POST /chat` retorna erro claro de configuração.
+- O fallback padrão continua sendo `mock`.
+
+## Como subir o projeto
+
+Na raiz do repositório:
+
+```bash
+docker compose -p solar-ai-support-agent up --build -d
+```
+
+Portas expostas no host:
+
+- API: `localhost:8010`
+- PostgreSQL: `localhost:5434`
+- Redis: `localhost:6381`
+
+## Como aplicar o schema do banco
+
+### PowerShell (Windows)
+
+```powershell
+.\database\apply_schema.ps1
+```
+
+### Bash / Linux / macOS / WSL
+
+```bash
+chmod +x database/apply_schema.sh
+./database/apply_schema.sh
+```
+
+Os scripts usam:
+
+- project name: `solar-ai-support-agent`
+- service name: `postgres`
+- database: `solar_ai_support`
+- user: `solar`
+
+## Como validar a API
+
+### Health check básico
+
+```bash
+curl http://localhost:8010/health
+```
+
+Resultado esperado:
+
+```json
+{"status":"ok"}
+```
+
+### Health check do banco
+
+```bash
+curl http://localhost:8010/health/db
+```
+
+Resultado esperado:
+
+```json
+{"status":"ok","database":"connected"}
+```
+
+## Como validar o chat em modo mock
+
+Defina no `.env`:
+
+```env
+LLM_PROVIDER=mock
+```
+
+Depois chame:
+
+```bash
+curl -X POST http://localhost:8010/chat \
+  -H "Content-Type: application/json" \
+  -d "{\"message\":\"Olá, moro em Mossoró, minha conta vem R$ 650 e tenho interesse em energia solar para minha casa\",\"conversation_id\":null,\"channel\":\"api\"}"
+```
+
+Resultado esperado:
+
+```json
+{
+  "conversation_id": "uuid-da-conversa",
+  "response": "Seu perfil já mostra um bom potencial preliminar para energia solar. Se quiser, você pode me informar o endereço do imóvel para avançarmos para uma pré-análise geoespacial preliminar.",
+  "mode": "mock"
+}
+```
+
+## Como validar o chat em modo OpenAI
+
+Defina no `.env`:
+
+```env
+LLM_PROVIDER=openai
+OPENAI_API_KEY=sua_chave
+OPENAI_MODEL=gpt-4o-mini
+```
+
+Rebuild:
+
+```bash
+docker compose -p solar-ai-support-agent up --build -d
+```
+
+Depois chame:
+
+```bash
+curl -X POST http://localhost:8010/chat \
+  -H "Content-Type: application/json" \
+  -d "{\"message\":\"Olá, moro em Mossoró, minha conta vem R$ 650 e tenho interesse em energia solar para minha casa\",\"conversation_id\":null,\"channel\":\"api\"}"
+```
+
+Resultado esperado:
+
+- resposta gerada pela OpenAI
+- `mode = "openai"`
+- mensagem do assistant salva com `model_provider = openai`
+- mensagem do assistant salva com `model_name =` o modelo configurado
+- evento `llm_openai_response_generated` registrado
+
+## Como validar leads e conversas
+
+Após chamar `POST /chat`, consulte:
+
+```bash
+docker compose -p solar-ai-support-agent exec postgres \
+  psql -U solar -d solar_ai_support \
+  -c "SELECT name, city, average_energy_bill, property_type, intent, lead_score, lead_temperature, source_channel FROM leads ORDER BY created_at DESC LIMIT 5;"
+```
+
+```bash
+docker compose -p solar-ai-support-agent exec postgres \
+  psql -U solar -d solar_ai_support \
+  -c "SELECT id, lead_id, status, current_state FROM conversations ORDER BY started_at DESC LIMIT 5;"
+```
+
+## Como verificar mensagens salvas no banco
+
+Após chamar `POST /chat`:
+
+```bash
+docker compose -p solar-ai-support-agent exec postgres \
+  psql -U solar -d solar_ai_support \
+  -c "SELECT role, content, model_provider, model_name, input_tokens, output_tokens, estimated_cost FROM messages ORDER BY created_at DESC LIMIT 5;"
+```
+
+Em modo mock, o assistant deve ser salvo com:
+
+- `model_provider = mock`
+- `model_name = mock-agent-v1`
+
+Em modo OpenAI, o assistant deve ser salvo com:
+
+- `model_provider = openai`
+- `model_name =` o modelo realmente usado
+
+## Como validar eventos do agente
+
+Após chamar `POST /chat`, consulte os eventos:
+
+```bash
+docker compose -p solar-ai-support-agent exec postgres \
+  psql -U solar -d solar_ai_support \
+  -c "SELECT event_type, event_source, payload, created_at FROM agent_events ORDER BY created_at DESC LIMIT 10;"
+```
+
+Eventos esperados em modo mock:
+
+- `conversation_started`
+- `user_message_received`
+- `lead_data_extracted`
+- `lead_created` ou `lead_updated`
+- `lead_scored`
+- `llm_mock_response_generated`
+- `assistant_mock_response_created`
+
+Eventos esperados em modo OpenAI:
+
+- `conversation_started`
+- `user_message_received`
+- `lead_data_extracted`
+- `lead_created` ou `lead_updated`
+- `lead_scored`
+- `llm_openai_response_generated`
+- `assistant_mock_response_created`
+
+Limitação atual:
+
+- `conversation_not_found` não é persistido em `agent_events`, porque a tabela exige `conversation_id` válido com foreign key para `conversations(id)`.
+
+## Como validar o custo estimado da OpenAI
+
+O `OpenAIProvider` calcula `estimated_cost` com base em:
+
+- `input_tokens`
+- `output_tokens`
+- `OPENAI_INPUT_PRICE_PER_1M_TOKENS`
+- `OPENAI_OUTPUT_PRICE_PER_1M_TOKENS`
+
+Se a API não retornar usage, o projeto salva:
+
+- `input_tokens = 0`
+- `output_tokens = 0`
+- `estimated_cost = 0`
+
+## Como validar se o schema foi aplicado
+
+```bash
+docker compose -p solar-ai-support-agent exec postgres psql -U solar -d solar_ai_support -c "\dt"
+```
+
+Resultado esperado: tabelas como:
+
+- `leads`
+- `conversations`
+- `messages`
+- `agent_events`
+- `geospatial_analysis`
+- `model_costs`
+- `knowledge_documents`
+
+## Documentação disponível
+
+- `docs/specs/001-solar-ai-support-agent/requirements.md`
+- `docs/specs/001-solar-ai-support-agent/design.md`
+- `docs/specs/001-solar-ai-support-agent/agent-behavior.md`
+- `docs/specs/001-solar-ai-support-agent/geospatial-module.md`
+- `docs/specs/001-solar-ai-support-agent/data-model.md`
+- `docs/specs/001-solar-ai-support-agent/evaluation-plan.md`
+- `docs/specs/001-solar-ai-support-agent/test-plan.md`
+- `docs/specs/001-solar-ai-support-agent/tasks.md`
+
+## Próxima etapa recomendada
+
+**T013 — Implementar Claude Provider**

@@ -1,0 +1,62 @@
+name: solar-ai-support-agent
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      APP_ENV: ${APP_ENV:-development}
+      APP_NAME: ${APP_NAME:-solar-ai-support-agent}
+      APP_PORT: ${APP_PORT:-8000}
+      DATABASE_HOST: ${DATABASE_HOST:-postgres}
+      DATABASE_PORT: ${DATABASE_PORT:-5432}
+      DATABASE_NAME: ${DATABASE_NAME:-solar_ai_support}
+      DATABASE_USER: ${DATABASE_USER:-solar}
+      DATABASE_PASSWORD: ${DATABASE_PASSWORD:-solar_password}
+      DATABASE_URL: ${DATABASE_URL:-postgresql+psycopg://solar:solar_password@postgres:5432/solar_ai_support}
+      REDIS_HOST: ${REDIS_HOST:-redis}
+      REDIS_PORT: ${REDIS_PORT:-6379}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
+      LLM_PROVIDER: ${LLM_PROVIDER:-mock}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4o-mini}
+      OPENAI_INPUT_PRICE_PER_1M_TOKENS: ${OPENAI_INPUT_PRICE_PER_1M_TOKENS:-0.15}
+      OPENAI_OUTPUT_PRICE_PER_1M_TOKENS: ${OPENAI_OUTPUT_PRICE_PER_1M_TOKENS:-0.60}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "8010:8000"
+
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DATABASE_NAME:-solar_ai_support}
+      POSTGRES_USER: ${DATABASE_USER:-solar}
+      POSTGRES_PASSWORD: ${DATABASE_PASSWORD:-solar_password}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DATABASE_USER:-solar} -d ${DATABASE_NAME:-solar_ai_support}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    ports:
+      - "5434:5432"
+    volumes:
+      - solar_ai_support_agent_postgres_data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    ports:
+      - "6381:6379"
+    volumes:
+      - solar_ai_support_agent_redis_data:/data
+
+volumes:
+  solar_ai_support_agent_postgres_data:
+    name: solar_ai_support_agent_postgres_data
+  solar_ai_support_agent_redis_data:
+    name: solar_ai_support_agent_redis_data

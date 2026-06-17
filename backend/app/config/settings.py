@@ -1,0 +1,39 @@
+from functools import lru_cache
+from decimal import Decimal
+
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+class Settings(BaseSettings):
+    model_config = SettingsConfigDict(extra="ignore", case_sensitive=False)
+
+    app_env: str = "development"
+    app_name: str = "solar-ai-support-agent"
+    app_port: int = 8000
+
+    database_host: str = "postgres"
+    database_port: int = 5432
+    database_name: str = "solar_ai_support"
+    database_user: str = "solar"
+    database_password: str = "solar_password"
+    database_url: str | None = None
+
+    llm_provider: str = "mock"
+    openai_api_key: str | None = None
+    openai_model: str = "gpt-4o-mini"
+    openai_input_price_per_1m_tokens: Decimal = Decimal("0.15")
+    openai_output_price_per_1m_tokens: Decimal = Decimal("0.60")
+
+    def get_database_url(self) -> str:
+        if self.database_url:
+            return self.database_url
+
+        return (
+            f"postgresql+psycopg://{self.database_user}:{self.database_password}"
+            f"@{self.database_host}:{self.database_port}/{self.database_name}"
+        )
+
+
+@lru_cache
+def get_settings() -> Settings:
+    return Settings()

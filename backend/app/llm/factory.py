@@ -1,0 +1,20 @@
+from ..config.settings import Settings, get_settings
+from .base import BaseLLMProvider, LLMProviderConfigurationError
+from .mock_provider import MockLLMProvider
+from .openai_provider import OpenAIProvider
+
+
+def build_llm_provider(settings: Settings | None = None) -> BaseLLMProvider:
+    active_settings = settings or get_settings()
+    provider_name = active_settings.llm_provider.lower().strip()
+
+    if provider_name == "mock":
+        return MockLLMProvider()
+
+    if provider_name == "openai":
+        return OpenAIProvider(settings=active_settings)
+
+    raise LLMProviderConfigurationError(
+        f"Unsupported LLM_PROVIDER '{active_settings.llm_provider}'. "
+        "Supported values: mock, openai."
+    )
