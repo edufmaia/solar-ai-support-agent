@@ -15,6 +15,7 @@ class LeadExtractionResult(BaseModel):
     property_type: PropertyType | None = None
     intent: LeadIntent = "general_question"
     has_solar_interest: bool = False
+    wants_human: bool = False
 
     def has_relevant_data(self) -> bool:
         return any(

@@ -49,6 +49,15 @@ class LeadExtractionService:
     RESIDENTIAL_KEYWORDS = ["casa", "residencia", "residência", "apartamento", "apto"]
     COMMERCIAL_KEYWORDS = ["comercio", "comércio", "empresa", "loja", "galpao", "galpão", "escritorio", "escritório"]
 
+    HUMAN_REQUEST_KEYWORDS = [
+        "atendente",
+        "humano",
+        "atendimento humano",
+        "com uma pessoa",
+        "com alguem",
+        "pessoa real",
+    ]
+
     def extract(self, message: str) -> LeadExtractionResult:
         normalized_message = self._normalize_text(message)
 
@@ -58,6 +67,7 @@ class LeadExtractionService:
         property_type = self._extract_property_type(normalized_message)
         intent = self._extract_intent(normalized_message)
         has_solar_interest = intent in {"solar_quote", "solar_interest"}
+        wants_human = self._detect_wants_human(normalized_message)
 
         return LeadExtractionResult(
             name=name,
@@ -66,6 +76,7 @@ class LeadExtractionService:
             property_type=property_type,
             intent=intent,
             has_solar_interest=has_solar_interest,
+            wants_human=wants_human,
         )
 
     def _extract_name(self, message: str) -> str | None:
@@ -134,6 +145,9 @@ class LeadExtractionService:
             return "solar_interest"
 
         return "general_question"
+
+    def _detect_wants_human(self, normalized_message: str) -> bool:
+        return any(keyword in normalized_message for keyword in self.HUMAN_REQUEST_KEYWORDS)
 
     @staticmethod
     def _normalize_text(text: str) -> str:

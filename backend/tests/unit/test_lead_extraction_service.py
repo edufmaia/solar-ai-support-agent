@@ -43,3 +43,19 @@ def test_message_without_relevant_data_returns_general_question():
     assert result.has_solar_interest is False
     assert result.city is None
     assert result.average_energy_bill is None
+
+
+def test_explicit_request_for_human_sets_wants_human():
+    service = LeadExtractionService()
+
+    assert service.extract("Quero falar com um atendente").wants_human is True
+    assert service.extract("Prefiro falar com uma pessoa, não com robô").wants_human is True
+    assert service.extract("Pode me transferir para um humano?").wants_human is True
+
+
+def test_neutral_message_does_not_set_wants_human():
+    service = LeadExtractionService()
+
+    result = service.extract("Olá, tenho interesse em energia solar para minha casa")
+
+    assert result.wants_human is False
