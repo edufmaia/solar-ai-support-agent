@@ -60,6 +60,19 @@ class LeadExtractionService(LeadExtractor):
         "pessoa real",
     ]
 
+    # Brazilian phone: optional +55, DDD (2 digits, optional parens), then 8-9
+    # subscriber digits with optional space/dot/dash separators.
+    PHONE_PATTERN = re.compile(
+        r"(?:\+?55\s*)?\(?\d{2}\)?[\s.-]*\d{4,5}[\s.-]?\d{4}"
+    )
+
+    # Best-effort address: a logradouro keyword through the end of the clause
+    # (stops at ';' or newline). Commas/periods inside are kept.
+    ADDRESS_PATTERN = re.compile(
+        r"\b(?:rua|avenida|av\.?|travessa|alameda|rodovia|estrada)\b[^;\n]*",
+        re.IGNORECASE,
+    )
+
     def extract(self, message: str) -> LeadExtractionResult:
         normalized_message = self._normalize_text(message)
 
@@ -70,6 +83,8 @@ class LeadExtractionService(LeadExtractor):
         intent = self._extract_intent(normalized_message)
         has_solar_interest = intent in {"solar_quote", "solar_interest"}
         wants_human = self._detect_wants_human(normalized_message)
+        phone = self._extract_phone(message)
+        address = self._extract_address(message)
 
         return LeadExtractionResult(
             name=name,
@@ -79,6 +94,8 @@ class LeadExtractionService(LeadExtractor):
             intent=intent,
             has_solar_interest=has_solar_interest,
             wants_human=wants_human,
+            phone=phone,
+            address=address,
         )
 
     def _extract_name(self, message: str) -> str | None:
@@ -150,6 +167,25 @@ class LeadExtractionService(LeadExtractor):
 
     def _detect_wants_human(self, normalized_message: str) -> bool:
         return any(keyword in normalized_message for keyword in self.HUMAN_REQUEST_KEYWORDS)
+
+    def _extract_phone(self, message: str) -> str | None:
+        match = self.PHONE_PATTERN.search(message)
+        if not match:
+            return None
+
+        digits = re.sub(r"\D", "", match.group(0))
+        if len(digits) in (10, 11, 12, 13):
+            return digits
+
+        return None
+
+    def _extract_address(self, message: str) -> str | None:
+        match = self.ADDRESS_PATTERN.search(message)
+        if not match:
+            return None
+
+        address = match.group(0).strip(" ,.;:-")
+        return address or None
 
     @staticmethod
     def _normalize_text(text: str) -> str:

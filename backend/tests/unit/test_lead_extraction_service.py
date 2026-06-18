@@ -67,3 +67,46 @@ def test_event_payload_includes_wants_human():
     payload = service.extract("Quero falar com um atendente").to_event_payload()
 
     assert payload["wants_human"] is True
+
+
+def test_extracts_phone_in_various_formats_as_digits():
+    service = LeadExtractionService()
+
+    assert service.extract("Meu telefone é (84) 99999-8888").phone == "84999998888"
+    assert service.extract("me liga no 84999998888").phone == "84999998888"
+    assert service.extract("contato +55 84 99999-8888").phone == "5584999998888"
+
+
+def test_does_not_capture_energy_bill_as_phone():
+    service = LeadExtractionService()
+
+    result = service.extract("minha conta vem R$ 650 e tenho interesse em energia solar")
+
+    assert result.phone is None
+    assert result.average_energy_bill is not None  # the bill is still extracted
+
+
+def test_message_without_phone_returns_none():
+    service = LeadExtractionService()
+
+    assert service.extract("Olá, tenho interesse em energia solar").phone is None
+
+
+def test_extracts_address_when_logradouro_present():
+    service = LeadExtractionService()
+
+    a1 = service.extract("Meu endereço é Rua das Flores, 123").address
+    assert a1 is not None
+    assert "Rua das Flores" in a1
+    assert "123" in a1
+
+    a2 = service.extract("Fica na Avenida Brasil, 4500, bairro Centro").address
+    assert a2 is not None
+    assert "Avenida Brasil" in a2
+    assert "4500" in a2
+
+
+def test_message_without_address_returns_none():
+    service = LeadExtractionService()
+
+    assert service.extract("Olá, tenho interesse em energia solar para minha casa").address is None
