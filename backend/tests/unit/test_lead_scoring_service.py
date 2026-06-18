@@ -18,7 +18,8 @@ def test_high_value_solar_quote_lead_is_hot():
         )
     )
 
-    # 20 (interest) + 25 (quote) + 35 (>=1000) + 15 (commercial) + 10 (city) + 5 (name) = 100
+    # 20 (interest) + 25 (quote) + 35 (>=1000) + 15 (commercial) + 10 (city) + 5 (name)
+    # = 110 raw, clamped to 100 by min(100, score)
     assert result.lead_score == 100
     assert result.lead_temperature == "hot"
     assert result.score_reasons
@@ -42,7 +43,7 @@ def test_empty_input_is_cold_with_zero_score():
     assert result.lead_temperature == "cold"
 
 
-def test_mid_value_residential_interest_is_warm():
+def test_mid_value_residential_interest_is_hot():
     service = LeadScoringService()
 
     result = service.score(
