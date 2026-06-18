@@ -20,6 +20,7 @@ from ..tools import ClassifyLeadTool, RequestHumanHandoffTool, SaveLeadTool, Upd
 from ..schemas.llm import LLMRequest
 from ..schemas.message import MessageCreate
 from ..services.lead_extraction_service import LeadExtractionService
+from ..services.lead_extractor import LeadExtractor
 from ..services.lead_scoring_service import LeadScoringService
 
 
@@ -30,13 +31,18 @@ class ConversationNotFoundError(Exception):
 class MockAgentOrchestrator:
     EVENT_SOURCE = "mock_agent_orchestrator"
 
-    def __init__(self, session: Session, llm_provider: BaseLLMProvider | None = None) -> None:
+    def __init__(
+        self,
+        session: Session,
+        llm_provider: BaseLLMProvider | None = None,
+        lead_extractor: LeadExtractor | None = None,
+    ) -> None:
         self.session = session
         self.agent_event_repository = AgentEventRepository(session)
         self.conversation_repository = ConversationRepository(session)
         self.lead_repository = LeadRepository(session)
         self.message_repository = MessageRepository(session)
-        self.lead_extraction_service = LeadExtractionService()
+        self.lead_extraction_service = lead_extractor or LeadExtractionService()
         self.lead_scoring_service = LeadScoringService()
         self.llm_provider = llm_provider or build_llm_provider()
         self.save_lead_tool = SaveLeadTool(self.lead_repository)
@@ -208,11 +214,11 @@ class MockAgentOrchestrator:
 
         lead_payload = LeadCreate(
             name=extraction.name,
-            phone=None,
+            phone=extraction.phone,
             email=None,
             city=extraction.city,
             state=None,
-            address=None,
+            address=extraction.address,
             property_type=extraction.property_type,
             average_energy_bill=extraction.average_energy_bill,
             intent=(
