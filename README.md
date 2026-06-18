@@ -264,6 +264,7 @@ Eventos esperados em modo mock:
 - `lead_data_extracted`
 - `lead_created` ou `lead_updated`
 - `lead_scored`
+- `human_handoff_requested` (quando o usuário pede um humano ou o lead fica `hot`)
 - `llm_mock_response_generated`
 - `assistant_mock_response_created`
 
@@ -274,6 +275,7 @@ Eventos esperados em modo OpenAI:
 - `lead_data_extracted`
 - `lead_created` ou `lead_updated`
 - `lead_scored`
+- `human_handoff_requested` (quando o usuário pede um humano ou o lead fica `hot`)
 - `llm_openai_response_generated`
 - `assistant_mock_response_created`
 

@@ -9,7 +9,14 @@ from ..schemas.chat import ChatRequest, ChatResponse
 from ..schemas.conversation import ConversationCreate, ConversationRead
 from ..schemas.lead import LeadCreate, LeadRead
 from ..schemas.lead_extraction import LeadExtractionResult
-from ..schemas.lead_scoring import LeadScoringInput, LeadScoringResult
+from ..schemas.lead_scoring import LeadScoringResult
+from ..schemas.tools import (
+    ClassifyLeadInput,
+    RequestHumanHandoffInput,
+    SaveLeadInput,
+    UpdateLeadInput,
+)
+from ..tools import ClassifyLeadTool, RequestHumanHandoffTool, SaveLeadTool, UpdateLeadTool
 from ..schemas.llm import LLMRequest
 from ..schemas.message import MessageCreate
 from ..services.lead_extraction_service import LeadExtractionService
@@ -32,6 +39,13 @@ class MockAgentOrchestrator:
         self.lead_extraction_service = LeadExtractionService()
         self.lead_scoring_service = LeadScoringService()
         self.llm_provider = llm_provider or build_llm_provider()
+        self.save_lead_tool = SaveLeadTool(self.lead_repository)
+        self.update_lead_tool = UpdateLeadTool(self.lead_repository)
+        self.classify_lead_tool = ClassifyLeadTool(self.lead_scoring_service, self.lead_repository)
+        self.handoff_tool = RequestHumanHandoffTool(
+            self.conversation_repository,
+            self.lead_repository,
+        )
 
     def handle_chat(self, payload: ChatRequest) -> ChatResponse:
         conversation = self._get_or_create_conversation(payload)
@@ -69,6 +83,8 @@ class MockAgentOrchestrator:
             updated_lead = self.lead_repository.get_by_id(lead.id)
             if updated_lead is not None:
                 lead = updated_lead
+
+        conversation = self._maybe_request_handoff(conversation, extraction, scoring)
 
         llm_request = self._build_llm_request(
             conversation=conversation,
@@ -211,7 +227,7 @@ class MockAgentOrchestrator:
         event_payload = extraction.to_event_payload()
 
         if conversation.lead_id is None:
-            lead = self.lead_repository.create(lead_payload)
+            lead = self.save_lead_tool.execute(SaveLeadInput(**lead_payload.model_dump()))
             linked_conversation = self.conversation_repository.assign_lead(conversation.id, lead.id)
             if linked_conversation is not None:
                 conversation = linked_conversation
@@ -239,7 +255,9 @@ class MockAgentOrchestrator:
             )
             return conversation
 
-        lead = self.lead_repository.update_basic_info(conversation.lead_id, lead_payload)
+        lead = self.update_lead_tool.execute(
+            UpdateLeadInput(lead_id=conversation.lead_id, **lead_payload.model_dump())
+        )
         lead_id = lead.id if lead is not None else conversation.lead_id
 
         self.agent_event_repository.create(
@@ -275,22 +293,19 @@ class MockAgentOrchestrator:
         if lead is None:
             return None
 
-        scoring_input = LeadScoringInput(
-            name=lead.name,
-            city=lead.city,
-            average_energy_bill=lead.average_energy_bill,
-            property_type=lead.property_type,
-            intent=lead.intent,
-            has_solar_interest=(
-                extraction.has_solar_interest
-                or lead.intent in {"solar_interest", "solar_quote"}
-            ),
-        )
-        scoring = self.lead_scoring_service.score(scoring_input)
-        self.lead_repository.update_score(
-            lead.id,
-            scoring.lead_score,
-            scoring.lead_temperature,
+        scoring = self.classify_lead_tool.execute(
+            ClassifyLeadInput(
+                lead_id=lead.id,
+                name=lead.name,
+                city=lead.city,
+                average_energy_bill=lead.average_energy_bill,
+                property_type=lead.property_type,
+                intent=lead.intent,
+                has_solar_interest=(
+                    extraction.has_solar_interest
+                    or lead.intent in {"solar_interest", "solar_quote"}
+                ),
+            )
         )
         self.agent_event_repository.create(
             AgentEventCreate(
@@ -306,6 +321,43 @@ class MockAgentOrchestrator:
             )
         )
         return scoring
+
+    def _maybe_request_handoff(
+        self,
+        conversation: ConversationRead,
+        extraction: LeadExtractionResult,
+        scoring: LeadScoringResult | None,
+    ) -> ConversationRead:
+        if conversation.assigned_to_human:
+            return conversation
+
+        if extraction.wants_human:
+            reason = "user_requested"
+        elif scoring is not None and scoring.lead_temperature == "hot":
+            reason = "hot_lead"
+        else:
+            return conversation
+
+        updated = self.handoff_tool.execute(
+            RequestHumanHandoffInput(
+                conversation_id=conversation.id,
+                lead_id=conversation.lead_id,
+                reason=reason,
+            )
+        )
+        self.agent_event_repository.create(
+            AgentEventCreate(
+                conversation_id=conversation.id,
+                lead_id=conversation.lead_id,
+                event_type="human_handoff_requested",
+                event_source=self.EVENT_SOURCE,
+                payload={
+                    "reason": reason,
+                    "lead_id": str(conversation.lead_id) if conversation.lead_id else None,
+                },
+            )
+        )
+        return updated if updated is not None else conversation
 
     def _build_llm_request(
         self,
