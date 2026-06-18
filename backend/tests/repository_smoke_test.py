@@ -9,8 +9,8 @@ from sqlalchemy import text
 sys.path.append(str(Path(__file__).resolve().parents[1]))
 
 from app.config.database import SessionLocal
-from app.repositories import ConversationRepository, LeadRepository, MessageRepository
-from app.schemas import ConversationCreate, LeadCreate, MessageCreate
+from app.repositories import ConversationRepository, GeospatialAnalysisRepository, LeadRepository, MessageRepository
+from app.schemas import ConversationCreate, GeospatialAnalysisCreate, LeadCreate, MessageCreate
 
 
 def main() -> None:
@@ -87,6 +87,27 @@ def main() -> None:
         flagged_lead = lead_repository.update_status(lead_id, "handoff_requested")
         assert flagged_lead is not None
         assert flagged_lead.status == "handoff_requested"
+
+        from decimal import Decimal as _D
+
+        geo_repository = GeospatialAnalysisRepository(session)
+        assert geo_repository.exists_for_lead(lead_id) is False
+        created_geo = geo_repository.create(
+            GeospatialAnalysisCreate(
+                lead_id=lead_id,
+                conversation_id=conversation_id,
+                raw_address="Rua das Flores, 123",
+                formatted_address="Rua das Flores, 123, Natal",
+                latitude=_D("-5.7945"),
+                longitude=_D("-35.2110"),
+                address_confidence="medium",
+                raw_response={"provider": "mock"},
+            )
+        )
+        assert created_geo.latitude == _D("-5.7945")
+        assert created_geo.address_confidence == "medium"
+        assert geo_repository.exists_for_lead(lead_id) is True
+        assert geo_repository.get_latest_by_lead_id(lead_id) is not None
 
         first_message = message_repository.create(
             MessageCreate(

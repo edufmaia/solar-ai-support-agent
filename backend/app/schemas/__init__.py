@@ -1,6 +1,7 @@
 from .agent_event import AgentEventCreate, AgentEventRead
 from .chat import ChatRequest, ChatResponse
 from .conversation import ConversationCreate, ConversationRead
+from .geospatial import GeospatialAnalysisCreate, GeospatialAnalysisRead
 from .lead import LeadCreate, LeadRead, LeadScoreUpdate
 from .lead_extraction import LeadExtractionResult
 from .lead_scoring import LeadScoringInput, LeadScoringResult
@@ -14,6 +15,8 @@ __all__ = [
     "ChatResponse",
     "ConversationCreate",
     "ConversationRead",
+    "GeospatialAnalysisCreate",
+    "GeospatialAnalysisRead",
     "LeadCreate",
     "LeadRead",
     "LeadExtractionResult",
