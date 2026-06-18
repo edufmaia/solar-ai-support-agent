@@ -85,7 +85,10 @@ def test_update_lead_tool_passes_lead_id_and_fields():
     assert passed_id == lead_id
     assert isinstance(passed_data, LeadCreate)
     assert passed_data.city == "Mossoró"
-    assert not hasattr(passed_data, "lead_id")
+    # lead_id is consumed by the tool, not forwarded into the LeadCreate payload;
+    # only the provided field is set, the rest default to None
+    assert passed_data.name is None
+    assert "lead_id" not in passed_data.model_dump()
 
 
 def test_classify_lead_tool_scores_and_persists():
