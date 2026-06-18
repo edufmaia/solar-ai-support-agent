@@ -79,6 +79,15 @@ def main() -> None:
         assert updated_conversation is not None
         assert updated_conversation.current_state == "awaiting_energy_bill"
 
+        handed_off = conversation_repository.mark_handoff(conversation_id)
+        assert handed_off is not None
+        assert handed_off.assigned_to_human is True
+        assert handed_off.status == "waiting_human"
+
+        flagged_lead = lead_repository.update_status(lead_id, "handoff_requested")
+        assert flagged_lead is not None
+        assert flagged_lead.status == "handoff_requested"
+
         first_message = message_repository.create(
             MessageCreate(
                 conversation_id=conversation_id,

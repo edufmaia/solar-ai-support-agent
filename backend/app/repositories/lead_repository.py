@@ -145,3 +145,26 @@ class LeadRepository:
         except SQLAlchemyError:
             self.session.rollback()
             raise
+
+    def update_status(self, lead_id: UUID, status: str) -> LeadRead | None:
+        query = text(
+            """
+            UPDATE leads
+            SET
+                status = :status,
+                updated_at = now()
+            WHERE id = :lead_id
+            RETURNING *
+            """
+        )
+        try:
+            result = self.session.execute(
+                query,
+                {"lead_id": lead_id, "status": status},
+            )
+            row = result.mappings().one_or_none()
+            self.session.commit()
+            return LeadRead.model_validate(dict(row)) if row else None
+        except SQLAlchemyError:
+            self.session.rollback()
+            raise

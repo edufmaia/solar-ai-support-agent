@@ -136,3 +136,24 @@ class ConversationRepository:
         except SQLAlchemyError:
             self.session.rollback()
             raise
+
+    def mark_handoff(self, conversation_id: UUID) -> ConversationRead | None:
+        query = text(
+            """
+            UPDATE conversations
+            SET
+                assigned_to_human = TRUE,
+                status = 'waiting_human',
+                updated_at = now()
+            WHERE id = :conversation_id
+            RETURNING *
+            """
+        )
+        try:
+            result = self.session.execute(query, {"conversation_id": conversation_id})
+            row = result.mappings().one_or_none()
+            self.session.commit()
+            return ConversationRead.model_validate(dict(row)) if row else None
+        except SQLAlchemyError:
+            self.session.rollback()
+            raise
