@@ -3,9 +3,10 @@ from decimal import Decimal, InvalidOperation
 from unicodedata import normalize
 
 from ..schemas.lead_extraction import LeadExtractionResult
+from .lead_extractor import LeadExtractor
 
 
-class LeadExtractionService:
+class LeadExtractionService(LeadExtractor):
     NAME_PATTERNS = [
         re.compile(r"\bme\s+chamo\s+([^,.;]+)", re.IGNORECASE),
         re.compile(r"\bmeu\s+nome\s+[ée]\s+([^,.;]+)", re.IGNORECASE),

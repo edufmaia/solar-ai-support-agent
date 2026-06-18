@@ -16,6 +16,8 @@ class LeadExtractionResult(BaseModel):
     intent: LeadIntent = "general_question"
     has_solar_interest: bool = False
     wants_human: bool = False
+    phone: str | None = None
+    address: str | None = None
 
     def has_relevant_data(self) -> bool:
         return any(
@@ -25,6 +27,8 @@ class LeadExtractionResult(BaseModel):
                 self.city is not None,
                 self.average_energy_bill is not None,
                 self.property_type is not None,
+                self.phone is not None,
+                self.address is not None,
             ]
         )
 
@@ -47,5 +51,9 @@ class LeadExtractionResult(BaseModel):
             )
         if self.property_type is not None:
             payload["property_type"] = self.property_type
+        if self.phone is not None:
+            payload["phone"] = self.phone
+        if self.address is not None:
+            payload["address"] = self.address
 
         return payload
