@@ -24,6 +24,12 @@ class Settings(BaseSettings):
     openai_input_price_per_1m_tokens: Decimal = Decimal("0.15")
     openai_output_price_per_1m_tokens: Decimal = Decimal("0.60")
 
+    anthropic_api_key: str | None = None
+    claude_model: str = "claude-opus-4-8"
+    claude_max_tokens: int = 1024
+    claude_input_price_per_1m_tokens: Decimal = Decimal("5.00")
+    claude_output_price_per_1m_tokens: Decimal = Decimal("25.00")
+
     def get_database_url(self) -> str:
         if self.database_url:
             return self.database_url

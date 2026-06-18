@@ -85,7 +85,7 @@ OPENAI_OUTPUT_PRICE_PER_1M_TOKENS=0.60
 
 Observações:
 
-- `LLM_PROVIDER` aceita atualmente `mock` e `openai`.
+- `LLM_PROVIDER` aceita atualmente `mock`, `openai` e `claude`.
 - Se `LLM_PROVIDER=openai` e `OPENAI_API_KEY` não estiver definida, `POST /chat` retorna erro claro de configuração.
 - O fallback padrão continua sendo `mock`.
 
@@ -321,6 +321,30 @@ Resultado esperado: tabelas como:
 - `docs/specs/001-solar-ai-support-agent/test-plan.md`
 - `docs/specs/001-solar-ai-support-agent/tasks.md`
 
+## Como validar o chat em modo Claude
+
+Defina no `.env`:
+
+```env
+LLM_PROVIDER=claude
+ANTHROPIC_API_KEY=sua_chave
+CLAUDE_MODEL=claude-opus-4-8
+```
+
+Rebuild:
+
+```bash
+docker compose -p solar-ai-support-agent up --build -d
+```
+
+Resultado esperado:
+
+- resposta gerada pela Anthropic
+- `mode = "claude"`
+- mensagem do assistant salva com `model_provider = claude`
+- mensagem do assistant salva com `model_name =` o modelo configurado
+- evento `llm_claude_response_generated` registrado
+
 ## Próxima etapa recomendada
 
-**T013 — Implementar Claude Provider**
+**T014 — Criar ferramentas do agente**
