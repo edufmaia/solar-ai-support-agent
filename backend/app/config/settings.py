@@ -30,6 +30,11 @@ class Settings(BaseSettings):
     claude_input_price_per_1m_tokens: Decimal = Decimal("5.00")
     claude_output_price_per_1m_tokens: Decimal = Decimal("25.00")
 
+    geocoding_provider: str = "mock"
+    nominatim_base_url: str = "https://nominatim.openstreetmap.org/search"
+    nominatim_user_agent: str = "solar-ai-support-agent"
+    geocoding_timeout_seconds: float = 5.0
+
     def get_database_url(self) -> str:
         if self.database_url:
             return self.database_url
