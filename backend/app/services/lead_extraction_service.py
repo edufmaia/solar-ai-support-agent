@@ -55,6 +55,7 @@ class LeadExtractionService:
         "atendimento humano",
         "com uma pessoa",
         "com alguem",
+        "com alguém",
         "pessoa real",
     ]
 

@@ -59,3 +59,11 @@ def test_neutral_message_does_not_set_wants_human():
     result = service.extract("Olá, tenho interesse em energia solar para minha casa")
 
     assert result.wants_human is False
+
+
+def test_event_payload_includes_wants_human():
+    service = LeadExtractionService()
+
+    payload = service.extract("Quero falar com um atendente").to_event_payload()
+
+    assert payload["wants_human"] is True

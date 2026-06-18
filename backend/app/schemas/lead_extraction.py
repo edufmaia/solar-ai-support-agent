@@ -32,6 +32,7 @@ class LeadExtractionResult(BaseModel):
         payload: dict[str, Any] = {
             "intent": self.intent,
             "has_solar_interest": self.has_solar_interest,
+            "wants_human": self.wants_human,
         }
 
         if self.name is not None:
