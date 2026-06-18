@@ -4,7 +4,9 @@ from .base import (
     GeocodingProviderError,
     GeocodingProviderInvocationError,
 )
+from .factory import build_geocoding_provider
 from .mock_provider import MockGeocodingProvider
+from .nominatim_provider import NominatimGeocodingProvider
 
 __all__ = [
     "BaseGeocodingProvider",
@@ -12,4 +14,6 @@ __all__ = [
     "GeocodingProviderError",
     "GeocodingProviderInvocationError",
     "MockGeocodingProvider",
+    "NominatimGeocodingProvider",
+    "build_geocoding_provider",
 ]
