@@ -121,3 +121,22 @@ def test_factory_builds_claude_provider_for_claude_setting():
 
     assert isinstance(provider, ClaudeProvider)
     assert provider.provider_name == "claude"
+
+
+def test_api_error_raises_invocation_error():
+    import httpx
+    from anthropic import APIConnectionError
+
+    class _ErrorMessages:
+        def create(self, **_kwargs):
+            raise APIConnectionError(
+                request=httpx.Request("POST", "https://api.anthropic.com")
+            )
+
+    class _ErrorClient:
+        messages = _ErrorMessages()
+
+    provider = ClaudeProvider(settings=_settings(), client=_ErrorClient())
+
+    with pytest.raises(LLMProviderInvocationError, match="Anthropic Messages API request failed"):
+        provider.generate_response(_request())

@@ -20,6 +20,7 @@ O projeto já possui:
 - camada abstrata de LLM com `BaseLLMProvider`
 - `MockLLMProvider`
 - `OpenAIProvider` usando a Responses API
+- `ClaudeProvider` usando a Anthropic Messages API
 - factory simples para escolher provider por variável de ambiente
 
 ## Stack
@@ -30,6 +31,7 @@ O projeto já possui:
 - Redis
 - SQLAlchemy
 - OpenAI Python SDK
+- Anthropic Python SDK
 - Docker Compose
 
 ## Estrutura principal
