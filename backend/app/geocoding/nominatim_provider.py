@@ -40,7 +40,7 @@ class NominatimGeocodingProvider(BaseGeocodingProvider):
                 )
             response.raise_for_status()
             data = response.json()
-        except httpx.HTTPError as exc:
+        except (httpx.HTTPError, ValueError) as exc:
             raise GeocodingProviderInvocationError(
                 f"Nominatim request failed: {exc}"
             ) from exc

@@ -94,3 +94,22 @@ def test_nominatim_wraps_client_error():
 
     with pytest.raises(GeocodingProviderInvocationError):
         provider.geocode("Rua X")
+
+
+class _MalformedJsonClient:
+    def get(self, *args, **kwargs):
+        class _Resp:
+            def raise_for_status(self):
+                return None
+
+            def json(self):
+                raise ValueError("malformed body")
+
+        return _Resp()
+
+
+def test_nominatim_wraps_malformed_json_body():
+    provider = NominatimGeocodingProvider(settings=_settings(), client=_MalformedJsonClient())
+
+    with pytest.raises(GeocodingProviderInvocationError):
+        provider.geocode("Rua X")
