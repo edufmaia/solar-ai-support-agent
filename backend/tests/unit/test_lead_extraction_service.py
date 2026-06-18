@@ -110,3 +110,25 @@ def test_message_without_address_returns_none():
     service = LeadExtractionService()
 
     assert service.extract("Olá, tenho interesse em energia solar para minha casa").address is None
+
+
+def test_detects_geo_consent_for_authorization_phrases():
+    service = LeadExtractionService()
+
+    assert service.extract("Pode analisar meu endereço").geo_consent is True
+    assert service.extract("Autorizo a análise preliminar").geo_consent is True
+    assert service.extract("Quero a análise do meu telhado").geo_consent is True
+
+
+def test_neutral_message_does_not_set_geo_consent():
+    service = LeadExtractionService()
+
+    assert service.extract("Olá, tenho interesse em energia solar").geo_consent is False
+
+
+def test_event_payload_includes_geo_consent():
+    service = LeadExtractionService()
+
+    payload = service.extract("Autorizo a análise").to_event_payload()
+
+    assert payload["geo_consent"] is True

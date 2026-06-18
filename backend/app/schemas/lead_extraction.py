@@ -18,6 +18,7 @@ class LeadExtractionResult(BaseModel):
     wants_human: bool = False
     phone: str | None = None
     address: str | None = None
+    geo_consent: bool = False
 
     def has_relevant_data(self) -> bool:
         return any(
@@ -37,6 +38,7 @@ class LeadExtractionResult(BaseModel):
             "intent": self.intent,
             "has_solar_interest": self.has_solar_interest,
             "wants_human": self.wants_human,
+            "geo_consent": self.geo_consent,
         }
 
         if self.name is not None:

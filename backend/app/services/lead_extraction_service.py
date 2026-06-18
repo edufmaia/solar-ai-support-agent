@@ -60,6 +60,15 @@ class LeadExtractionService(LeadExtractor):
         "pessoa real",
     ]
 
+    GEO_CONSENT_KEYWORDS = [
+        "autorizo",
+        "pode analisar",
+        "pode fazer a analise",
+        "faca a analise",
+        "quero a analise",
+        "pode verificar",
+    ]
+
     # Brazilian phone: optional +55, DDD (2 digits, optional parens), then 8-9
     # subscriber digits with optional space/dot/dash separators.
     PHONE_PATTERN = re.compile(
@@ -85,6 +94,7 @@ class LeadExtractionService(LeadExtractor):
         wants_human = self._detect_wants_human(normalized_message)
         phone = self._extract_phone(message)
         address = self._extract_address(message)
+        geo_consent = self._detect_geo_consent(normalized_message)
 
         return LeadExtractionResult(
             name=name,
@@ -96,6 +106,7 @@ class LeadExtractionService(LeadExtractor):
             wants_human=wants_human,
             phone=phone,
             address=address,
+            geo_consent=geo_consent,
         )
 
     def _extract_name(self, message: str) -> str | None:
@@ -167,6 +178,9 @@ class LeadExtractionService(LeadExtractor):
 
     def _detect_wants_human(self, normalized_message: str) -> bool:
         return any(keyword in normalized_message for keyword in self.HUMAN_REQUEST_KEYWORDS)
+
+    def _detect_geo_consent(self, normalized_message: str) -> bool:
+        return any(keyword in normalized_message for keyword in self.GEO_CONSENT_KEYWORDS)
 
     def _extract_phone(self, message: str) -> str | None:
         match = self.PHONE_PATTERN.search(message)
