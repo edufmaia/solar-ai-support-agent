@@ -41,3 +41,9 @@ class RequestHumanHandoffInput(BaseModel):
     lead_id: UUID | None = None
     reason: HandoffReason
     note: str | None = None
+
+
+class GeocodeAddressInput(BaseModel):
+    lead_id: UUID
+    conversation_id: UUID | None = None
+    address: str
