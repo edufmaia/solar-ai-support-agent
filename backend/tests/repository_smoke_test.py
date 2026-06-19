@@ -119,14 +119,19 @@ def main() -> None:
                 estimated_system_kwp=_D("3.64"),
                 confidence_level="medium",
                 requires_technical_review=False,
-                raw_response={"provider": "mock"},
+                raw_response={"source": "solar-test"},
             ),
         )
         assert updated_geo is not None
         assert updated_geo.solar_data_available is True
+        assert updated_geo.estimated_panel_min == 6
+        assert updated_geo.estimated_panel_max == 8
         assert updated_geo.estimated_system_kwp == _D("3.64")
         assert updated_geo.confidence_level == "medium"
         assert updated_geo.requires_technical_review is False
+        # JSONB merge preserves the geocoding payload and nests solar under "solar"
+        assert updated_geo.raw_response["provider"] == "mock"
+        assert updated_geo.raw_response["solar"] == {"source": "solar-test"}
 
         first_message = message_repository.create(
             MessageCreate(
