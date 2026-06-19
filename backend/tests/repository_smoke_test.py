@@ -11,6 +11,7 @@ sys.path.append(str(Path(__file__).resolve().parents[1]))
 from app.config.database import SessionLocal
 from app.repositories import ConversationRepository, GeospatialAnalysisRepository, LeadRepository, MessageRepository
 from app.schemas import ConversationCreate, GeospatialAnalysisCreate, LeadCreate, MessageCreate
+from app.schemas.solar import SolarPotentialResult
 
 
 def main() -> None:
@@ -108,6 +109,24 @@ def main() -> None:
         assert created_geo.address_confidence == "medium"
         assert geo_repository.exists_for_lead(lead_id) is True
         assert geo_repository.get_latest_by_lead_id(lead_id) is not None
+
+        updated_geo = geo_repository.update_solar_data(
+            created_geo.id,
+            SolarPotentialResult(
+                solar_data_available=True,
+                estimated_panel_min=6,
+                estimated_panel_max=8,
+                estimated_system_kwp=_D("3.64"),
+                confidence_level="medium",
+                requires_technical_review=False,
+                raw_response={"provider": "mock"},
+            ),
+        )
+        assert updated_geo is not None
+        assert updated_geo.solar_data_available is True
+        assert updated_geo.estimated_system_kwp == _D("3.64")
+        assert updated_geo.confidence_level == "medium"
+        assert updated_geo.requires_technical_review is False
 
         first_message = message_repository.create(
             MessageCreate(
