@@ -1,6 +1,6 @@
 from decimal import Decimal
 
-from ..schemas.lead_scoring import LeadScoringInput, LeadScoringResult
+from ..schemas.lead_scoring import LeadScoringInput, LeadScoringResult, LeadTemperature
 
 
 class LeadScoringService:
@@ -54,15 +54,57 @@ class LeadScoringService:
 
         score = max(0, min(100, score))
 
-        if score >= 70:
-            temperature = "hot"
-        elif score >= 40:
-            temperature = "warm"
-        else:
-            temperature = "cold"
+        temperature = self._temperature_for(score)
 
         return LeadScoringResult(
             lead_score=score,
             lead_temperature=temperature,
             score_reasons=reasons,
+        )
+
+    def _temperature_for(self, score: int) -> LeadTemperature:
+        if score >= 70:
+            return "hot"
+        if score >= 40:
+            return "warm"
+        return "cold"
+
+    def apply_geospatial(
+        self, base: LeadScoringResult, geospatial: dict | None
+    ) -> LeadScoringResult:
+        solar = (geospatial or {}).get("solar")
+        if not solar or not solar.get("solar_data_available"):
+            return base
+
+        delta = 10
+        reasons: list[str] = ["Análise solar confirmada para o endereço"]
+
+        kwp_raw = solar.get("estimated_system_kwp")
+        kwp = Decimal(str(kwp_raw)) if kwp_raw is not None else None
+        if kwp is not None and kwp >= Decimal("10"):
+            delta += 15
+            reasons.append("Potencial solar alto (>= 10 kWp)")
+        elif kwp is not None and kwp >= Decimal("5"):
+            delta += 10
+            reasons.append("Potencial solar médio (>= 5 kWp)")
+        elif kwp is not None and kwp > Decimal("0"):
+            delta += 5
+            reasons.append("Potencial solar estimado")
+
+        confidence = solar.get("confidence_level")
+        if confidence == "high":
+            delta += 5
+            reasons.append("Alta confiança na análise geoespacial")
+        elif confidence == "medium":
+            delta += 3
+            reasons.append("Confiança média na análise geoespacial")
+
+        if solar.get("requires_technical_review"):
+            reasons.append("Requer revisão técnica (consultor humano)")
+
+        new_score = max(0, min(100, base.lead_score + delta))
+        return LeadScoringResult(
+            lead_score=new_score,
+            lead_temperature=self._temperature_for(new_score),
+            score_reasons=base.score_reasons + reasons,
         )
