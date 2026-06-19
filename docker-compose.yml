@@ -33,6 +33,7 @@ services:
       NOMINATIM_BASE_URL: ${NOMINATIM_BASE_URL:-https://nominatim.openstreetmap.org/search}
       NOMINATIM_USER_AGENT: ${NOMINATIM_USER_AGENT:-solar-ai-support-agent}
       GEOCODING_TIMEOUT_SECONDS: ${GEOCODING_TIMEOUT_SECONDS:-5.0}
+      SOLAR_PROVIDER: ${SOLAR_PROVIDER:-mock}
     depends_on:
       postgres:
         condition: service_healthy

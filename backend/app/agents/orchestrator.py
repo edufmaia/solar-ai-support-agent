@@ -8,17 +8,20 @@ from ..repositories import AgentEventRepository, ConversationRepository, Geospat
 from ..schemas.agent_event import AgentEventCreate
 from ..schemas.chat import ChatRequest, ChatResponse
 from ..schemas.conversation import ConversationCreate, ConversationRead
+from ..schemas.geospatial import GeospatialAnalysisRead
 from ..schemas.lead import LeadCreate, LeadRead
 from ..schemas.lead_extraction import LeadExtractionResult
 from ..schemas.lead_scoring import LeadScoringResult
 from ..schemas.tools import (
     ClassifyLeadInput,
+    EstimateSolarPotentialInput,
     GeocodeAddressInput,
     RequestHumanHandoffInput,
     SaveLeadInput,
     UpdateLeadInput,
 )
-from ..tools import ClassifyLeadTool, GeocodeAddressTool, RequestHumanHandoffTool, SaveLeadTool, UpdateLeadTool
+from ..solar import BaseSolarProvider, SolarProviderError, build_solar_provider
+from ..tools import ClassifyLeadTool, EstimateSolarPotentialTool, GeocodeAddressTool, RequestHumanHandoffTool, SaveLeadTool, UpdateLeadTool
 from ..schemas.llm import LLMRequest
 from ..schemas.message import MessageCreate
 from ..services.lead_extraction_service import LeadExtractionService
@@ -39,6 +42,7 @@ class MockAgentOrchestrator:
         llm_provider: BaseLLMProvider | None = None,
         lead_extractor: LeadExtractor | None = None,
         geocoding_provider: BaseGeocodingProvider | None = None,
+        solar_provider: BaseSolarProvider | None = None,
     ) -> None:
         self.session = session
         self.agent_event_repository = AgentEventRepository(session)
@@ -59,6 +63,11 @@ class MockAgentOrchestrator:
         self.geospatial_analysis_repository = GeospatialAnalysisRepository(session)
         self.geocode_address_tool = GeocodeAddressTool(
             self.geocoding_provider,
+            self.geospatial_analysis_repository,
+        )
+        self.solar_provider = solar_provider or build_solar_provider()
+        self.estimate_solar_tool = EstimateSolarPotentialTool(
+            self.solar_provider,
             self.geospatial_analysis_repository,
         )
 
@@ -423,6 +432,65 @@ class MockAgentOrchestrator:
                 conversation_id=conversation.id,
                 lead_id=lead.id,
                 event_type="geospatial_analysis_completed",
+                event_source=self.EVENT_SOURCE,
+                payload=summary,
+            )
+        )
+        solar = self._maybe_run_solar(conversation, lead, analysis)
+        if solar is not None:
+            summary["solar"] = solar
+        return summary
+
+    def _maybe_run_solar(
+        self,
+        conversation: ConversationRead,
+        lead: LeadRead,
+        analysis: GeospatialAnalysisRead,
+    ) -> dict | None:
+        if analysis.latitude is None or analysis.longitude is None:
+            return None
+
+        try:
+            updated = self.estimate_solar_tool.execute(
+                EstimateSolarPotentialInput(
+                    analysis_id=analysis.id,
+                    latitude=analysis.latitude,
+                    longitude=analysis.longitude,
+                    average_energy_bill=lead.average_energy_bill,
+                )
+            )
+        except SolarProviderError as exc:
+            self.agent_event_repository.create(
+                AgentEventCreate(
+                    conversation_id=conversation.id,
+                    lead_id=lead.id,
+                    event_type="solar_potential_failed",
+                    event_source=self.EVENT_SOURCE,
+                    payload={"error": str(exc)},
+                )
+            )
+            return None
+
+        if updated is None:
+            return None
+
+        summary = {
+            "solar_data_available": updated.solar_data_available,
+            "estimated_panel_min": updated.estimated_panel_min,
+            "estimated_panel_max": updated.estimated_panel_max,
+            "estimated_system_kwp": (
+                float(updated.estimated_system_kwp)
+                if updated.estimated_system_kwp is not None
+                else None
+            ),
+            "confidence_level": updated.confidence_level,
+            "requires_technical_review": updated.requires_technical_review,
+        }
+        self.agent_event_repository.create(
+            AgentEventCreate(
+                conversation_id=conversation.id,
+                lead_id=lead.id,
+                event_type="solar_potential_completed",
                 event_source=self.EVENT_SOURCE,
                 payload=summary,
             )

@@ -266,6 +266,7 @@ Eventos esperados em modo mock:
 - `lead_scored`
 - `human_handoff_requested` (quando o usuário pede um humano ou o lead fica `hot`)
 - `geospatial_analysis_completed` (quando o usuário autoriza a análise e há endereço)
+- `solar_potential_completed` (após o geocoding, quando há coordenadas)
 - `llm_mock_response_generated`
 - `assistant_mock_response_created`
 
@@ -278,6 +279,7 @@ Eventos esperados em modo OpenAI:
 - `lead_scored`
 - `human_handoff_requested` (quando o usuário pede um humano ou o lead fica `hot`)
 - `geospatial_analysis_completed` (quando o usuário autoriza a análise e há endereço)
+- `solar_potential_completed` (após o geocoding, quando há coordenadas)
 - `llm_openai_response_generated`
 - `assistant_mock_response_created`
 
@@ -354,6 +356,8 @@ Resultado esperado:
 ## Geocoding
 
 `GEOCODING_PROVIDER` aceita `mock` (default, determinístico) e `nominatim` (OpenStreetMap, gratuito, sem chave — exige `User-Agent`, configurável via `NOMINATIM_USER_AGENT`). A análise geoespacial é disparada quando o usuário autoriza explicitamente ("autorizo", "pode analisar") e o lead já tem endereço; o resultado é gravado em `geospatial_analysis` e registrado no evento `geospatial_analysis_completed`.
+
+Após o geocoding, quando há coordenadas, o agente estima o potencial solar preliminar (faixa de painéis, kWp, nível de confiança e necessidade de revisão técnica) com base na conta de energia do lead — sem conta, cai para uma estimativa determinística por coordenadas. `SOLAR_PROVIDER` aceita `mock` (default); o resultado é gravado nas colunas solares de `geospatial_analysis` e registrado no evento `solar_potential_completed`. É uma pré-análise e não substitui vistoria técnica.
 
 ## Próxima etapa recomendada
 
