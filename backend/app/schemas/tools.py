@@ -47,3 +47,10 @@ class GeocodeAddressInput(BaseModel):
     lead_id: UUID
     conversation_id: UUID | None = None
     address: str
+
+
+class EstimateSolarPotentialInput(BaseModel):
+    analysis_id: UUID
+    latitude: Decimal | None = None
+    longitude: Decimal | None = None
+    average_energy_bill: Decimal | None = None
