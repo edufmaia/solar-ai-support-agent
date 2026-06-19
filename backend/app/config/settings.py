@@ -35,6 +35,8 @@ class Settings(BaseSettings):
     nominatim_user_agent: str = "solar-ai-support-agent"
     geocoding_timeout_seconds: float = 5.0
 
+    solar_provider: str = "mock"
+
     def get_database_url(self) -> str:
         if self.database_url:
             return self.database_url
