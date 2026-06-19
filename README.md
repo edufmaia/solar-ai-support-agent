@@ -265,6 +265,7 @@ Eventos esperados em modo mock:
 - `lead_created` ou `lead_updated`
 - `lead_scored`
 - `human_handoff_requested` (quando o usuário pede um humano ou o lead fica `hot`)
+- `geospatial_analysis_completed` (quando o usuário autoriza a análise e há endereço)
 - `llm_mock_response_generated`
 - `assistant_mock_response_created`
 
@@ -276,6 +277,7 @@ Eventos esperados em modo OpenAI:
 - `lead_created` ou `lead_updated`
 - `lead_scored`
 - `human_handoff_requested` (quando o usuário pede um humano ou o lead fica `hot`)
+- `geospatial_analysis_completed` (quando o usuário autoriza a análise e há endereço)
 - `llm_openai_response_generated`
 - `assistant_mock_response_created`
 
@@ -348,6 +350,10 @@ Resultado esperado:
 - mensagem do assistant salva com `model_provider = claude`
 - mensagem do assistant salva com `model_name =` o modelo configurado
 - evento `llm_claude_response_generated` registrado
+
+## Geocoding
+
+`GEOCODING_PROVIDER` aceita `mock` (default, determinístico) e `nominatim` (OpenStreetMap, gratuito, sem chave — exige `User-Agent`, configurável via `NOMINATIM_USER_AGENT`). A análise geoespacial é disparada quando o usuário autoriza explicitamente ("autorizo", "pode analisar") e o lead já tem endereço; o resultado é gravado em `geospatial_analysis` e registrado no evento `geospatial_analysis_completed`.
 
 ## Próxima etapa recomendada
 

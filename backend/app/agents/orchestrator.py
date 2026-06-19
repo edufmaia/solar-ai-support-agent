@@ -2,8 +2,9 @@ from decimal import Decimal
 
 from sqlalchemy.orm import Session
 
+from ..geocoding import BaseGeocodingProvider, GeocodingProviderError, build_geocoding_provider
 from ..llm import BaseLLMProvider, build_llm_provider
-from ..repositories import AgentEventRepository, ConversationRepository, LeadRepository, MessageRepository
+from ..repositories import AgentEventRepository, ConversationRepository, GeospatialAnalysisRepository, LeadRepository, MessageRepository
 from ..schemas.agent_event import AgentEventCreate
 from ..schemas.chat import ChatRequest, ChatResponse
 from ..schemas.conversation import ConversationCreate, ConversationRead
@@ -12,11 +13,12 @@ from ..schemas.lead_extraction import LeadExtractionResult
 from ..schemas.lead_scoring import LeadScoringResult
 from ..schemas.tools import (
     ClassifyLeadInput,
+    GeocodeAddressInput,
     RequestHumanHandoffInput,
     SaveLeadInput,
     UpdateLeadInput,
 )
-from ..tools import ClassifyLeadTool, RequestHumanHandoffTool, SaveLeadTool, UpdateLeadTool
+from ..tools import ClassifyLeadTool, GeocodeAddressTool, RequestHumanHandoffTool, SaveLeadTool, UpdateLeadTool
 from ..schemas.llm import LLMRequest
 from ..schemas.message import MessageCreate
 from ..services.lead_extraction_service import LeadExtractionService
@@ -36,6 +38,7 @@ class MockAgentOrchestrator:
         session: Session,
         llm_provider: BaseLLMProvider | None = None,
         lead_extractor: LeadExtractor | None = None,
+        geocoding_provider: BaseGeocodingProvider | None = None,
     ) -> None:
         self.session = session
         self.agent_event_repository = AgentEventRepository(session)
@@ -51,6 +54,12 @@ class MockAgentOrchestrator:
         self.handoff_tool = RequestHumanHandoffTool(
             self.conversation_repository,
             self.lead_repository,
+        )
+        self.geocoding_provider = geocoding_provider or build_geocoding_provider()
+        self.geospatial_analysis_repository = GeospatialAnalysisRepository(session)
+        self.geocode_address_tool = GeocodeAddressTool(
+            self.geocoding_provider,
+            self.geospatial_analysis_repository,
         )
 
     def handle_chat(self, payload: ChatRequest) -> ChatResponse:
@@ -92,12 +101,15 @@ class MockAgentOrchestrator:
 
         conversation = self._maybe_request_handoff(conversation, extraction, scoring)
 
+        geospatial = self._maybe_run_geocoding(conversation, lead, extraction)
+
         llm_request = self._build_llm_request(
             conversation=conversation,
             user_message=payload.message,
             extraction=extraction,
             lead=lead,
             scoring=scoring,
+            geospatial=geospatial,
         )
         llm_response = self.llm_provider.generate_response(llm_request)
 
@@ -365,6 +377,58 @@ class MockAgentOrchestrator:
         )
         return updated if updated is not None else conversation
 
+    def _maybe_run_geocoding(
+        self,
+        conversation: ConversationRead,
+        lead: LeadRead | None,
+        extraction: LeadExtractionResult,
+    ) -> dict | None:
+        if not extraction.geo_consent:
+            return None
+        if lead is None or not lead.address:
+            return None
+        if self.geospatial_analysis_repository.exists_for_lead(lead.id):
+            return None
+
+        try:
+            analysis = self.geocode_address_tool.execute(
+                GeocodeAddressInput(
+                    lead_id=lead.id,
+                    conversation_id=conversation.id,
+                    address=lead.address,
+                )
+            )
+        except GeocodingProviderError as exc:
+            self.agent_event_repository.create(
+                AgentEventCreate(
+                    conversation_id=conversation.id,
+                    lead_id=lead.id,
+                    event_type="geospatial_analysis_failed",
+                    event_source=self.EVENT_SOURCE,
+                    payload={"error": str(exc)},
+                )
+            )
+            return None
+
+        found = analysis.latitude is not None and analysis.longitude is not None
+        summary = {
+            "found": found,
+            "address_confidence": analysis.address_confidence,
+            "latitude": float(analysis.latitude) if analysis.latitude is not None else None,
+            "longitude": float(analysis.longitude) if analysis.longitude is not None else None,
+            "formatted_address": analysis.formatted_address,
+        }
+        self.agent_event_repository.create(
+            AgentEventCreate(
+                conversation_id=conversation.id,
+                lead_id=lead.id,
+                event_type="geospatial_analysis_completed",
+                event_source=self.EVENT_SOURCE,
+                payload=summary,
+            )
+        )
+        return summary
+
     def _build_llm_request(
         self,
         conversation: ConversationRead,
@@ -372,6 +436,7 @@ class MockAgentOrchestrator:
         extraction: LeadExtractionResult,
         lead: LeadRead | None,
         scoring: LeadScoringResult | None,
+        geospatial: dict | None = None,
     ) -> LLMRequest:
         return LLMRequest(
             conversation_id=conversation.id,
@@ -381,4 +446,5 @@ class MockAgentOrchestrator:
             lead_score=scoring.lead_score if scoring is not None else None,
             lead_temperature=scoring.lead_temperature if scoring is not None else None,
             extracted_data=extraction.to_event_payload(),
+            geospatial=geospatial,
         )

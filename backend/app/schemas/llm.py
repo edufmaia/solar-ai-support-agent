@@ -13,6 +13,7 @@ class LLMRequest(BaseModel):
     lead_score: int | None = None
     lead_temperature: str | None = None
     extracted_data: dict[str, Any] = Field(default_factory=dict)
+    geospatial: dict[str, Any] | None = None
 
 
 class LLMResponse(BaseModel):
