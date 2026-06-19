@@ -264,9 +264,10 @@ Eventos esperados em modo mock:
 - `lead_data_extracted`
 - `lead_created` ou `lead_updated`
 - `lead_scored`
-- `human_handoff_requested` (quando o usuário pede um humano ou o lead fica `hot`)
 - `geospatial_analysis_completed` (quando o usuário autoriza a análise e há endereço)
 - `solar_potential_completed` (após o geocoding, quando há coordenadas)
+- `lead_score_updated` (quando a análise geoespacial/solar altera o score)
+- `human_handoff_requested` (usuário pede humano, lead `hot`, ou `technical_review` da análise solar)
 - `llm_mock_response_generated`
 - `assistant_mock_response_created`
 
@@ -277,9 +278,10 @@ Eventos esperados em modo OpenAI:
 - `lead_data_extracted`
 - `lead_created` ou `lead_updated`
 - `lead_scored`
-- `human_handoff_requested` (quando o usuário pede um humano ou o lead fica `hot`)
 - `geospatial_analysis_completed` (quando o usuário autoriza a análise e há endereço)
 - `solar_potential_completed` (após o geocoding, quando há coordenadas)
+- `lead_score_updated` (quando a análise geoespacial/solar altera o score)
+- `human_handoff_requested` (usuário pede humano, lead `hot`, ou `technical_review` da análise solar)
 - `llm_openai_response_generated`
 - `assistant_mock_response_created`
 
