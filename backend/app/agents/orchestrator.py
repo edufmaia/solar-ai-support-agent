@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 from decimal import Decimal
 
 from sqlalchemy.orm import Session
@@ -27,6 +28,8 @@ from ..schemas.message import MessageCreate
 from ..services.lead_extraction_service import LeadExtractionService
 from ..services.lead_extractor import LeadExtractor
 from ..services.lead_scoring_service import LeadScoringService
+from ..session import RedisSessionStore, SessionStoreError, build_session_store
+from ..schemas.session import SessionState
 
 
 class ConversationNotFoundError(Exception):
@@ -43,9 +46,12 @@ class MockAgentOrchestrator:
         lead_extractor: LeadExtractor | None = None,
         geocoding_provider: BaseGeocodingProvider | None = None,
         solar_provider: BaseSolarProvider | None = None,
+        session_store: RedisSessionStore | None = None,
     ) -> None:
         self.session = session
         self._turn_event_count = 0
+        self._session_degraded = False
+        self.session_store = session_store or build_session_store()
         self.agent_event_repository = AgentEventRepository(session)
         self.conversation_repository = ConversationRepository(session)
         self.lead_repository = LeadRepository(session)
@@ -74,7 +80,11 @@ class MockAgentOrchestrator:
 
     def handle_chat(self, payload: ChatRequest) -> ChatResponse:
         self._turn_event_count = 0
+        self._session_degraded = False
         conversation = self._get_or_create_conversation(payload)
+
+        recovered_session = self._recover_session(conversation)
+        previous_turn_count = recovered_session.turn_count if recovered_session is not None else 0
 
         user_message = self.message_repository.create(
             MessageCreate(
@@ -199,6 +209,8 @@ class MockAgentOrchestrator:
             )
         )
 
+        self._save_session(conversation, lead, scoring, previous_turn_count)
+
         return ChatResponse(
             conversation_id=conversation.id,
             response=llm_response.content,
@@ -210,6 +222,74 @@ class MockAgentOrchestrator:
         result = self.agent_event_repository.create(event)
         self._turn_event_count += 1
         return result
+
+    def _recover_session(self, conversation: ConversationRead) -> SessionState | None:
+        """Recover the ephemeral session snapshot from Redis (best-effort)."""
+        try:
+            state = self.session_store.get(conversation.id)
+        except SessionStoreError as exc:
+            self._session_degraded = True
+            self._record_event(
+                AgentEventCreate(
+                    conversation_id=conversation.id,
+                    lead_id=conversation.lead_id,
+                    event_type="session_store_unavailable",
+                    event_source=self.EVENT_SOURCE,
+                    payload={"operation": "recover", "error": str(exc)},
+                )
+            )
+            return None
+
+        if state is None:
+            return None
+
+        self._record_event(
+            AgentEventCreate(
+                conversation_id=conversation.id,
+                lead_id=conversation.lead_id,
+                event_type="session_recovered",
+                event_source=self.EVENT_SOURCE,
+                payload={
+                    "previous_turn_count": state.turn_count,
+                    "previous_state": state.current_state,
+                },
+            )
+        )
+        return state
+
+    def _save_session(
+        self,
+        conversation: ConversationRead,
+        lead: LeadRead | None,
+        scoring: LeadScoringResult | None,
+        previous_turn_count: int,
+    ) -> None:
+        """Persist the ephemeral session snapshot to Redis (best-effort)."""
+        if self._session_degraded:
+            return
+
+        state = SessionState(
+            conversation_id=conversation.id,
+            current_state=conversation.current_state,
+            lead_id=lead.id if lead is not None else conversation.lead_id,
+            lead_score=scoring.lead_score if scoring is not None else None,
+            lead_temperature=scoring.lead_temperature if scoring is not None else None,
+            turn_count=previous_turn_count + 1,
+            updated_at=datetime.now(timezone.utc),
+        )
+        try:
+            self.session_store.save(state)
+        except SessionStoreError as exc:
+            self._session_degraded = True
+            self._record_event(
+                AgentEventCreate(
+                    conversation_id=conversation.id,
+                    lead_id=conversation.lead_id,
+                    event_type="session_store_unavailable",
+                    event_source=self.EVENT_SOURCE,
+                    payload={"operation": "save", "error": str(exc)},
+                )
+            )
 
     def _get_or_create_conversation(self, payload: ChatRequest) -> ConversationRead:
         if payload.conversation_id is None:
