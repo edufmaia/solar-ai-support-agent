@@ -133,12 +133,35 @@ function renderLead(lead) {
     '<span class="muted">—</span>';
 }
 
+function satelliteImage(lat, lon) {
+  const d = 0.0016; // ~ a couple hundred metres around the point
+  const la = Number(lat);
+  const lo = Number(lon);
+  if (isNaN(la) || isNaN(lo)) return "";
+  const bbox = `${lo - d},${la - d},${lo + d},${la + d}`;
+  const url =
+    "https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/export" +
+    `?bbox=${bbox}&bboxSR=4326&imageSR=4326&size=336,200&format=jpg&f=image`;
+  return (
+    '<div class="map-wrap">' +
+    `<img class="map-thumb" src="${url}" alt="Vista de satélite do endereço" loading="lazy" ` +
+    "onerror=\"this.closest('.map-wrap').style.display='none'\"/>" +
+    '<span class="map-pin">📍</span>' +
+    '<span class="map-tag">vista de satélite</span>' +
+    "</div>"
+  );
+}
+
 function renderSolar(geo) {
   if (!geo) {
     els.solarInfo.innerHTML = '<span class="muted">Ainda não realizada. Autorize a análise e informe o endereço.</span>';
     return;
   }
-  let html =
+  let html = "";
+  if (geo.latitude && geo.longitude) {
+    html += satelliteImage(geo.latitude, geo.longitude);
+  }
+  html +=
     row("Endereço", geo.formatted_address) +
     row("Confiança do endereço", geo.address_confidence) +
     row("Coordenadas",

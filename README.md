@@ -467,7 +467,7 @@ Acesse **`http://localhost:8010/ui/`** (a raiz `/` redireciona para lá). É uma
 
 - **Conversa:** estado atual, canal e um banner destacado quando a conversa é **encaminhada para atendimento humano**.
 - **Lead:** nome, cidade, endereço, conta média, intenção e **score + temperatura** (badge hot/warm/cold).
-- **Análise solar:** quando o usuário autoriza e informa o endereço — **faixa de placas estimada**, **kWp**, nível de confiança e a flag **"requer revisão técnica"**.
+- **Análise solar:** quando o usuário autoriza e informa o endereço — uma **imagem de satélite do imóvel** (Esri World Imagery, via lat/lon geocodificada), a **faixa de placas estimada**, **kWp**, nível de confiança e a flag **"requer revisão técnica"**.
 - **Eventos do agente:** a trilha de `agent_events` do turno, destacando handoff/solar/score.
 
 Roteiro sugerido para ver tudo preencher: (1) "Olá, sou a Ana de Natal, moro na Rua das Flores 123, minha conta vem R$ 800 e quero energia solar" → lead criado e pontuado; (2) "Autorizo a análise, pode verificar meu endereço" → geocoding + potencial solar + (lead quente) encaminhamento para humano.
@@ -501,7 +501,7 @@ O GitHub Actions (`.github/workflows/ci.yml`) roda a cada push/PR:
 
 - **SQL manual em vez de ORM:** os repositories usam `SQLAlchemy text()` com `commit/rollback` por método; os schemas Pydantic são a única representação tipada (`Model.model_validate(dict(row))`). Mantém o controle do SQL explícito e o projeto enxuto.
 - **`agent_events` como trilha de auditoria:** cada passo relevante emite um evento, e cada turno é resumido em `agent_turn_completed` (tokens/modelo/custo/nº de eventos) — a base do `GET /metrics`.
-- **Provider de LLM plugável:** `BaseLLMProvider` + factory por `LLM_PROVIDER` (`mock`/`openai`/`claude`), com fallback para `mock`; trocar de modelo é trocar uma env var.
+- **Provider de LLM plugável:** `BaseLLMProvider` + factory por `LLM_PROVIDER` (`mock`/`openai`/`claude`), com fallback para `mock`; trocar de modelo é trocar uma env var. A pré-análise geoespacial/solar é injetada no prompt (`llm/context.py`), então o LLM cita a **faixa de placas e kWp reais** do pipeline em vez de inventar.
 - **PostgreSQL como fonte da verdade, Redis como cache:** a sessão da conversa e o mapa Chatwoot→conversa vivem no Redis com TTL; se o Redis cair, o fluxo continua e registra `session_store_unavailable`.
 - **Webhook idempotente:** o `POST /webhooks/chatwoot` sempre responde `200` (mesmo se o envio da resposta falhar), evitando reentregas em loop do Chatwoot; mensagens `outgoing` são ignoradas para não responder a si mesmo.
 - **Pré-análise geoespacial, não vistoria:** geocoding + potencial solar produzem uma estimativa preliminar e disparam handoff por `technical_review` quando necessário.
