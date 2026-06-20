@@ -2,6 +2,10 @@
 
 const state = { conversationId: null, sending: false };
 
+const WELCOME_TEXT =
+  "Olá! 👋 Sou o assistente virtual de energia solar. Posso te orientar e fazer uma " +
+  "pré-análise preliminar com uma estimativa de placas para o seu consumo. Como posso ajudar?";
+
 const els = {
   messages: document.getElementById("messages"),
   form: document.getElementById("chat-form"),
@@ -23,6 +27,14 @@ const HIGHLIGHT_EVENTS = new Set([
   "lead_score_updated",
   "geospatial_analysis_completed",
 ]);
+
+function showWelcome() {
+  els.messages.innerHTML = "";
+  const div = document.createElement("div");
+  div.className = "bubble agent";
+  div.textContent = WELCOME_TEXT;
+  els.messages.appendChild(div);
+}
 
 function addBubble(text, role) {
   const hint = els.messages.querySelector(".empty-hint");
@@ -231,8 +243,7 @@ function renderEvents(events) {
 
 function resetConversation() {
   state.conversationId = null;
-  els.messages.innerHTML =
-    '<div class="empty-hint">Nova conversa iniciada. Escreva uma mensagem para começar.</div>';
+  showWelcome();
   els.modeBadge.textContent = "modo: —";
   els.handoffBanner.classList.add("hidden");
   els.convInfo.innerHTML = '<span class="muted">Sem conversa ainda.</span>';
@@ -252,4 +263,5 @@ els.form.addEventListener("submit", (e) => {
 });
 
 els.newConv.addEventListener("click", resetConversation);
+showWelcome();
 els.input.focus();
