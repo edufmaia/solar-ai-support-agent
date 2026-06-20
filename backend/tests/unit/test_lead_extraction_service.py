@@ -17,6 +17,44 @@ def test_extracts_city_bill_and_solar_interest_from_full_message():
     assert result.has_solar_interest is True
 
 
+def test_self_intro_strips_article_and_origin_into_city():
+    service = LeadExtractionService()
+
+    result = service.extract("Ola, sou a Carla de Natal, moro na Rua das Flores, 123")
+
+    assert result.name == "Carla"
+    assert result.city == "Natal"
+
+
+def test_self_intro_without_article_splits_name_and_origin():
+    service = LeadExtractionService()
+
+    result = service.extract("Sou Pedro de Mossoró")
+
+    assert result.name == "Pedro"
+    assert result.city == "Mossoró"
+
+
+def test_me_chamo_extracts_simple_name():
+    assert LeadExtractionService().extract("Oi, me chamo João").name == "João"
+
+
+def test_explicit_name_context_keeps_surname_and_no_city():
+    # "meu nome é" is a full-name context: keep the surname, do not treat
+    # "de Souza" as an origin city.
+    result = LeadExtractionService().extract("Meu nome é Maria de Souza")
+
+    assert result.name == "Maria De Souza"
+    assert result.city is None
+
+
+def test_city_patterns_still_work():
+    service = LeadExtractionService()
+
+    assert service.extract("moro em Mossoró").city == "Mossoró"
+    assert service.extract("sou de Natal").city == "Natal"
+
+
 def test_quote_keyword_sets_solar_quote_intent():
     service = LeadExtractionService()
 
