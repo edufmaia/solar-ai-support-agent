@@ -7,6 +7,7 @@ from .lead_extraction import LeadExtractionResult
 from .lead_scoring import LeadScoringInput, LeadScoringResult
 from .llm import LLMRequest, LLMResponse
 from .message import MessageCreate, MessageRead
+from .metrics import ConversationMetrics, EventTypeCount, LeadMetrics, MetricsResponse
 from .usage import UsageAggregate, UsageByModel
 
 __all__ = [
@@ -28,6 +29,10 @@ __all__ = [
     "LLMResponse",
     "MessageCreate",
     "MessageRead",
+    "ConversationMetrics",
+    "EventTypeCount",
+    "LeadMetrics",
+    "MetricsResponse",
     "UsageAggregate",
     "UsageByModel",
 ]
