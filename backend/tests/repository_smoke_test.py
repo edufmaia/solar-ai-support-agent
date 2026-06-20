@@ -167,6 +167,16 @@ def main() -> None:
         assert len(conversation_messages) >= 2
         assert conversation_messages[0].conversation_id == conversation_id
 
+        usage = message_repository.aggregate_usage(conversation_id)
+        assert usage.total_messages >= 2
+        assert usage.total_input_tokens >= 12
+        assert usage.total_output_tokens >= 18
+        assert usage.total_estimated_cost >= Decimal("0.000123")
+        assert any(
+            entry.model_provider == "mock" and entry.model_name == "mock-reply-v1"
+            for entry in usage.by_model
+        )
+
         closed_conversation = conversation_repository.close(conversation_id)
         assert closed_conversation is not None
         assert closed_conversation.status == "closed"
