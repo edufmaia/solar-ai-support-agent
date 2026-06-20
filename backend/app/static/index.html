@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Solar AI Support Agent</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">☀️ Solar AI Support Agent</div>
+    <div class="topbar-right">
+      <span id="mode-badge" class="badge badge-mode">modo: —</span>
+      <button id="new-conversation" class="btn-secondary">Nova conversa</button>
+    </div>
+  </header>
+
+  <main class="layout">
+    <!-- Chat -->
+    <section class="chat">
+      <div id="messages" class="messages">
+        <div class="empty-hint">
+          Comece a conversa. Ex.: <em>"Olá, sou a Ana de Natal, minha conta vem R$ 600 e quero energia solar na minha casa"</em>.
+        </div>
+      </div>
+      <form id="chat-form" class="chat-form">
+        <input id="message-input" type="text" autocomplete="off"
+               placeholder="Escreva uma mensagem..." />
+        <button id="send-btn" type="submit" class="btn-primary">Enviar</button>
+      </form>
+    </section>
+
+    <!-- Inspector -->
+    <aside class="inspector">
+      <div id="handoff-banner" class="handoff-banner hidden">
+        🙋 Encaminhado para atendimento humano
+      </div>
+
+      <div class="panel">
+        <h2>Conversa</h2>
+        <div id="conv-info" class="kv"><span class="muted">Sem conversa ainda.</span></div>
+      </div>
+
+      <div class="panel">
+        <h2>Lead</h2>
+        <div id="lead-info" class="kv"><span class="muted">—</span></div>
+      </div>
+
+      <div class="panel">
+        <h2>Análise solar (pré-análise)</h2>
+        <div id="solar-info" class="kv"><span class="muted">Ainda não realizada.</span></div>
+      </div>
+
+      <div class="panel">
+        <h2>Eventos do agente</h2>
+        <ul id="events-list" class="events"><li class="muted">—</li></ul>
+      </div>
+    </aside>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
