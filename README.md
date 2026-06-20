@@ -26,6 +26,7 @@ O projeto já possui:
 - extração estruturada de lead e scoring enriquecido por análise geoespacial/solar
 - geocoding (mock/Nominatim) e potencial solar (mock) com handoff por `technical_review`
 - registro de custos do agente: evento `agent_turn_completed` por turno e `MessageRepository.aggregate_usage` (tokens/custo, com breakdown por modelo)
+- endpoint `GET /metrics` com dados agregados (leads, conversas, uso/custo, eventos)
 
 ## Stack
 
@@ -310,6 +311,39 @@ Se a API não retornar usage, o projeto salva:
 - `output_tokens = 0`
 - `estimated_cost = 0`
 
+## Como validar as métricas do agente
+
+O endpoint `GET /metrics` retorna dados agregados de leads, conversas, uso/custo de LLM e eventos do agente (tudo calculado on-read, sem materialização):
+
+```bash
+curl http://localhost:8010/metrics
+```
+
+Resultado esperado (exemplo):
+
+```json
+{
+  "leads": {"total": 14, "by_temperature": {"hot": 10, "warm": 2, "cold": 1, "unscored": 1}},
+  "conversations": {"total": 19, "assigned_to_human": 7},
+  "usage": {
+    "total_messages": 48,
+    "total_input_tokens": 0,
+    "total_output_tokens": 0,
+    "total_estimated_cost": "0.000000",
+    "by_model": [
+      {"model_provider": "mock", "model_name": "mock-agent-v1", "message_count": 24, "input_tokens": 0, "output_tokens": 0, "estimated_cost": "0.000000"}
+    ]
+  },
+  "events": [
+    {"event_type": "assistant_mock_response_created", "count": 22},
+    {"event_type": "agent_turn_completed", "count": 17}
+  ]
+}
+```
+
+- `usage` reusa o agregador de uso (`MessageRepository.aggregate_usage`) introduzido no T019.
+- `events` conta os `agent_events` por tipo (mais frequentes primeiro).
+
 ## Como validar se o schema foi aplicado
 
 ```bash
@@ -369,4 +403,4 @@ Após o geocoding, quando há coordenadas, o agente estima o potencial solar pre
 
 ## Próxima etapa recomendada
 
-**T020 — Criar endpoint de métricas (`GET /metrics`)** com dados agregados, consumindo `MessageRepository.aggregate_usage` e a contagem de eventos do agente.
+**T021 — Integrar Redis para sessão**, salvando o estado temporário da conversa.
