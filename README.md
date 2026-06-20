@@ -1,5 +1,7 @@
 ﻿# Solar AI Support Agent
 
+[![CI](https://github.com/edufmaia/solar-ai-support-agent/actions/workflows/ci.yml/badge.svg)](https://github.com/edufmaia/solar-ai-support-agent/actions/workflows/ci.yml)
+
 Agente de IA para atendimento inicial, qualificação de leads e pré-análise geoespacial para empresas de energia solar.
 
 ## Status atual
@@ -487,6 +489,13 @@ docker compose -p solar-ai-support-agent exec backend python tests/chatwoot_test
 ```
 
 > O serviço `backend` roda uma imagem buildada (sem volume mount do código). Após editar `backend/`, rode `docker compose -p solar-ai-support-agent up --build -d backend` antes de testar.
+
+### Integração contínua (CI)
+
+O GitHub Actions (`.github/workflows/ci.yml`) roda a cada push/PR:
+
+- **unit** — instala as deps e roda `pytest tests/unit` (sem dependências externas).
+- **integration** — sobe serviços Postgres + Redis, aplica o schema com `python database/apply_schema.py` e executa os scripts de integração.
 
 ## Decisões técnicas
 
