@@ -6,6 +6,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from ..schemas.agent_event import AgentEventCreate, AgentEventRead
+from ..schemas.metrics import EventTypeCount
 
 
 class AgentEventRepository:
@@ -55,6 +56,19 @@ class AgentEventRepository:
         )
         result = self.session.execute(query, {"conversation_id": conversation_id})
         return [AgentEventRead.model_validate(dict(row)) for row in result.mappings().all()]
+
+    def count_by_event_type(self) -> list[EventTypeCount]:
+        """Count agent events grouped by event_type, most frequent first."""
+        query = text(
+            """
+            SELECT event_type, COUNT(*) AS count
+            FROM agent_events
+            GROUP BY event_type
+            ORDER BY COUNT(*) DESC, event_type ASC
+            """
+        )
+        rows = self.session.execute(query).mappings().all()
+        return [EventTypeCount.model_validate(dict(row)) for row in rows]
 
     def list_by_event_type(self, event_type: str) -> list[AgentEventRead]:
         query = text(

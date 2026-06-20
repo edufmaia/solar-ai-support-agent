@@ -5,6 +5,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from ..schemas.conversation import ConversationCreate, ConversationRead
+from ..schemas.metrics import ConversationMetrics
 
 
 class ConversationRepository:
@@ -136,6 +137,23 @@ class ConversationRepository:
         except SQLAlchemyError:
             self.session.rollback()
             raise
+
+    def metrics(self) -> ConversationMetrics:
+        """Aggregate conversation counts: total and how many are with a human."""
+        row = self.session.execute(
+            text(
+                """
+                SELECT
+                    COUNT(*) AS total,
+                    COUNT(*) FILTER (WHERE assigned_to_human) AS assigned_to_human
+                FROM conversations
+                """
+            )
+        ).mappings().one()
+        return ConversationMetrics(
+            total=row["total"],
+            assigned_to_human=row["assigned_to_human"],
+        )
 
     def mark_handoff(self, conversation_id: UUID) -> ConversationRead | None:
         query = text(

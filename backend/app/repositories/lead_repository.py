@@ -5,6 +5,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from ..schemas.lead import LeadCreate, LeadRead, LeadScoreUpdate
+from ..schemas.metrics import LeadMetrics
 
 
 class LeadRepository:
@@ -145,6 +146,21 @@ class LeadRepository:
         except SQLAlchemyError:
             self.session.rollback()
             raise
+
+    def metrics(self) -> LeadMetrics:
+        """Aggregate lead counts: total and breakdown by temperature."""
+        total = self.session.execute(text("SELECT COUNT(*) FROM leads")).scalar_one()
+        rows = self.session.execute(
+            text(
+                """
+                SELECT COALESCE(lead_temperature, 'unscored') AS temperature, COUNT(*) AS count
+                FROM leads
+                GROUP BY COALESCE(lead_temperature, 'unscored')
+                """
+            )
+        ).mappings().all()
+        by_temperature = {row["temperature"]: row["count"] for row in rows}
+        return LeadMetrics(total=total, by_temperature=by_temperature)
 
     def update_status(self, lead_id: UUID, status: str) -> LeadRead | None:
         query = text(
