@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 from ..geocoding import BaseGeocodingProvider, GeocodingProviderError, build_geocoding_provider
 from ..llm import BaseLLMProvider, build_llm_provider
 from ..repositories import AgentEventRepository, ConversationRepository, GeospatialAnalysisRepository, LeadRepository, MessageRepository
-from ..schemas.agent_event import AgentEventCreate
+from ..schemas.agent_event import AgentEventCreate, AgentEventRead
 from ..schemas.chat import ChatRequest, ChatResponse
 from ..schemas.conversation import ConversationCreate, ConversationRead
 from ..schemas.geospatial import GeospatialAnalysisRead
@@ -45,6 +45,7 @@ class MockAgentOrchestrator:
         solar_provider: BaseSolarProvider | None = None,
     ) -> None:
         self.session = session
+        self._turn_event_count = 0
         self.agent_event_repository = AgentEventRepository(session)
         self.conversation_repository = ConversationRepository(session)
         self.lead_repository = LeadRepository(session)
@@ -72,6 +73,7 @@ class MockAgentOrchestrator:
         )
 
     def handle_chat(self, payload: ChatRequest) -> ChatResponse:
+        self._turn_event_count = 0
         conversation = self._get_or_create_conversation(payload)
 
         user_message = self.message_repository.create(
@@ -86,7 +88,7 @@ class MockAgentOrchestrator:
                 estimated_cost=Decimal("0"),
             )
         )
-        self.agent_event_repository.create(
+        self._record_event(
             AgentEventCreate(
                 conversation_id=conversation.id,
                 lead_id=conversation.lead_id,
@@ -128,7 +130,7 @@ class MockAgentOrchestrator:
         )
         llm_response = self.llm_provider.generate_response(llm_request)
 
-        self.agent_event_repository.create(
+        self._record_event(
             AgentEventCreate(
                 conversation_id=conversation.id,
                 lead_id=conversation.lead_id,
@@ -164,7 +166,7 @@ class MockAgentOrchestrator:
                 estimated_cost=llm_response.estimated_cost,
             )
         )
-        self.agent_event_repository.create(
+        self._record_event(
             AgentEventCreate(
                 conversation_id=conversation.id,
                 lead_id=conversation.lead_id,
@@ -178,11 +180,36 @@ class MockAgentOrchestrator:
             )
         )
 
+        events_recorded = self._turn_event_count
+        self._record_event(
+            AgentEventCreate(
+                conversation_id=conversation.id,
+                lead_id=conversation.lead_id,
+                event_type="agent_turn_completed",
+                event_source=self.EVENT_SOURCE,
+                payload={
+                    "provider": llm_response.provider,
+                    "model_name": llm_response.model_name,
+                    "input_tokens": llm_response.input_tokens,
+                    "output_tokens": llm_response.output_tokens,
+                    "total_tokens": llm_response.input_tokens + llm_response.output_tokens,
+                    "estimated_cost": float(llm_response.estimated_cost),
+                    "events_recorded": events_recorded,
+                },
+            )
+        )
+
         return ChatResponse(
             conversation_id=conversation.id,
             response=llm_response.content,
             mode=llm_response.provider,
         )
+
+    def _record_event(self, event: AgentEventCreate) -> AgentEventRead:
+        """Persist an agent event and count it toward the current turn."""
+        result = self.agent_event_repository.create(event)
+        self._turn_event_count += 1
+        return result
 
     def _get_or_create_conversation(self, payload: ChatRequest) -> ConversationRead:
         if payload.conversation_id is None:
@@ -195,7 +222,7 @@ class MockAgentOrchestrator:
                     assigned_to_human=False,
                 )
             )
-            self.agent_event_repository.create(
+            self._record_event(
                 AgentEventCreate(
                     conversation_id=conversation.id,
                     lead_id=conversation.lead_id,
@@ -216,7 +243,7 @@ class MockAgentOrchestrator:
             # in agent_events without changing the schema.
             raise ConversationNotFoundError(str(payload.conversation_id))
 
-        self.agent_event_repository.create(
+        self._record_event(
             AgentEventCreate(
                 conversation_id=conversation.id,
                 lead_id=conversation.lead_id,
@@ -265,7 +292,7 @@ class MockAgentOrchestrator:
             if linked_conversation is not None:
                 conversation = linked_conversation
 
-            self.agent_event_repository.create(
+            self._record_event(
                 AgentEventCreate(
                     conversation_id=conversation.id,
                     lead_id=lead.id,
@@ -274,7 +301,7 @@ class MockAgentOrchestrator:
                     payload=event_payload,
                 )
             )
-            self.agent_event_repository.create(
+            self._record_event(
                 AgentEventCreate(
                     conversation_id=conversation.id,
                     lead_id=lead.id,
@@ -293,7 +320,7 @@ class MockAgentOrchestrator:
         )
         lead_id = lead.id if lead is not None else conversation.lead_id
 
-        self.agent_event_repository.create(
+        self._record_event(
             AgentEventCreate(
                 conversation_id=conversation.id,
                 lead_id=lead_id,
@@ -302,7 +329,7 @@ class MockAgentOrchestrator:
                 payload=event_payload,
             )
         )
-        self.agent_event_repository.create(
+        self._record_event(
             AgentEventCreate(
                 conversation_id=conversation.id,
                 lead_id=lead_id,
@@ -340,7 +367,7 @@ class MockAgentOrchestrator:
                 ),
             )
         )
-        self.agent_event_repository.create(
+        self._record_event(
             AgentEventCreate(
                 conversation_id=conversation.id,
                 lead_id=lead.id,
@@ -376,7 +403,7 @@ class MockAgentOrchestrator:
             lead.id, new_scoring.lead_score, new_scoring.lead_temperature
         )
         geo_reasons = new_scoring.score_reasons[len(scoring.score_reasons):]
-        self.agent_event_repository.create(
+        self._record_event(
             AgentEventCreate(
                 conversation_id=conversation.id,
                 lead_id=lead.id,
@@ -419,7 +446,7 @@ class MockAgentOrchestrator:
                 reason=reason,
             )
         )
-        self.agent_event_repository.create(
+        self._record_event(
             AgentEventCreate(
                 conversation_id=conversation.id,
                 lead_id=conversation.lead_id,
@@ -455,7 +482,7 @@ class MockAgentOrchestrator:
                 )
             )
         except GeocodingProviderError as exc:
-            self.agent_event_repository.create(
+            self._record_event(
                 AgentEventCreate(
                     conversation_id=conversation.id,
                     lead_id=lead.id,
@@ -474,7 +501,7 @@ class MockAgentOrchestrator:
             "longitude": float(analysis.longitude) if analysis.longitude is not None else None,
             "formatted_address": analysis.formatted_address,
         }
-        self.agent_event_repository.create(
+        self._record_event(
             AgentEventCreate(
                 conversation_id=conversation.id,
                 lead_id=lead.id,
@@ -507,7 +534,7 @@ class MockAgentOrchestrator:
                 )
             )
         except SolarProviderError as exc:
-            self.agent_event_repository.create(
+            self._record_event(
                 AgentEventCreate(
                     conversation_id=conversation.id,
                     lead_id=lead.id,
@@ -533,7 +560,7 @@ class MockAgentOrchestrator:
             "confidence_level": updated.confidence_level,
             "requires_technical_review": updated.requires_technical_review,
         }
-        self.agent_event_repository.create(
+        self._record_event(
             AgentEventCreate(
                 conversation_id=conversation.id,
                 lead_id=lead.id,

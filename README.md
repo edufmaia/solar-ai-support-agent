@@ -22,6 +22,10 @@ O projeto já possui:
 - `OpenAIProvider` usando a Responses API
 - `ClaudeProvider` usando a Anthropic Messages API
 - factory simples para escolher provider por variável de ambiente
+- tools do agente (`save_lead`, `update_lead`, `classify_lead`, `request_human_handoff`)
+- extração estruturada de lead e scoring enriquecido por análise geoespacial/solar
+- geocoding (mock/Nominatim) e potencial solar (mock) com handoff por `technical_review`
+- registro de custos do agente: evento `agent_turn_completed` por turno e `MessageRepository.aggregate_usage` (tokens/custo, com breakdown por modelo)
 
 ## Stack
 
@@ -270,6 +274,7 @@ Eventos esperados em modo mock:
 - `human_handoff_requested` (usuário pede humano, lead `hot`, ou `technical_review` da análise solar)
 - `llm_mock_response_generated`
 - `assistant_mock_response_created`
+- `agent_turn_completed` (resumo do turno: tokens, modelo, custo estimado e nº de eventos)
 
 Eventos esperados em modo OpenAI:
 
@@ -284,6 +289,7 @@ Eventos esperados em modo OpenAI:
 - `human_handoff_requested` (usuário pede humano, lead `hot`, ou `technical_review` da análise solar)
 - `llm_openai_response_generated`
 - `assistant_mock_response_created`
+- `agent_turn_completed` (resumo do turno: tokens, modelo, custo estimado e nº de eventos)
 
 Limitação atual:
 
@@ -363,4 +369,4 @@ Após o geocoding, quando há coordenadas, o agente estima o potencial solar pre
 
 ## Próxima etapa recomendada
 
-**T015 — Implementar extração estruturada de lead**
+**T020 — Criar endpoint de métricas (`GET /metrics`)** com dados agregados, consumindo `MessageRepository.aggregate_usage` e a contagem de eventos do agente.
