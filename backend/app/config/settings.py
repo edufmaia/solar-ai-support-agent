@@ -19,6 +19,7 @@ class Settings(BaseSettings):
     database_url: str | None = None
 
     llm_provider: str = "mock"
+    hybrid_real_provider: str = "openai"
     openai_api_key: str | None = None
     openai_model: str = "gpt-4o-mini"
     openai_input_price_per_1m_tokens: Decimal = Decimal("0.15")

@@ -137,9 +137,11 @@ OPENAI_OUTPUT_PRICE_PER_1M_TOKENS=0.60
 
 Observações:
 
-- `LLM_PROVIDER` aceita atualmente `mock`, `openai` e `claude`.
+- `LLM_PROVIDER` aceita atualmente `mock`, `openai`, `claude` e `hybrid`.
 - Se `LLM_PROVIDER=openai` e `OPENAI_API_KEY` não estiver definida, `POST /chat` retorna erro claro de configuração.
 - O fallback padrão continua sendo `mock`.
+
+**Modo `hybrid` (economia de tokens):** roteia cada turno entre o mock (grátis) e um provider real (`HYBRID_REAL_PROVIDER`, padrão `openai`). Turnos scriptados — saudação, coleta de cidade/conta/endereço e o resumo da pré-análise solar — são respondidos pelo mock a custo zero; o LLM real só é chamado quando os dados-core estão completos e há texto livre para interpretar. O provider real é construído sob demanda (turnos mock funcionam mesmo sem a chave) e cada turno registra o provider/custo reais, então o painel de custo soma só os turnos pagos.
 
 ### Sessão em Redis
 
@@ -468,7 +470,10 @@ Acesse **`http://localhost:8010/ui/`** (a raiz `/` redireciona para lá). É uma
 - **Conversa:** estado atual, canal e um banner destacado quando a conversa é **encaminhada para atendimento humano**.
 - **Lead:** nome, cidade, endereço, conta média, intenção e **score + temperatura** (badge hot/warm/cold).
 - **Análise solar:** quando o usuário autoriza e informa o endereço — uma **imagem de satélite do imóvel** (Esri World Imagery, via lat/lon geocodificada), a **faixa de placas estimada**, **kWp**, nível de confiança e a flag **"requer revisão técnica"**.
+- **Custo & uso (LLM):** provider/modelo, tokens e **custo estimado** acumulado da conversa (turnos mock aparecem com custo zero).
 - **Eventos do agente:** a trilha de `agent_events` do turno, destacando handoff/solar/score.
+
+Ao abrir a UI, o agente já exibe uma **mensagem de boas-vindas** (estática, sem chamar o backend).
 
 Roteiro sugerido para ver tudo preencher: (1) "Olá, sou a Ana de Natal, moro na Rua das Flores 123, minha conta vem R$ 800 e quero energia solar" → lead criado e pontuado; (2) "Autorizo a análise, pode verificar meu endereço" → geocoding + potencial solar + (lead quente) encaminhamento para humano.
 
