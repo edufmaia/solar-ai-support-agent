@@ -531,7 +531,7 @@ Após o geocoding, quando há coordenadas, o agente estima o potencial solar pre
 
 ## Roadmap
 
-Progresso: **24/25 tarefas (96%)** — backend completo e documentado. Detalhe em [`docs/specs/001-solar-ai-support-agent/tasks.md`](docs/specs/001-solar-ai-support-agent/tasks.md).
+Progresso: **25/25 tarefas (100%) ✅** — roadmap completo. Detalhe em [`docs/specs/001-solar-ai-support-agent/tasks.md`](docs/specs/001-solar-ai-support-agent/tasks.md).
 
 | Fase | Tarefas | Status |
 |---|---|---|
@@ -540,4 +540,4 @@ Progresso: **24/25 tarefas (96%)** — backend completo e documentado. Detalhe e
 | Geoespacial (geocoding, solar, score) | T016–T018 | ✅ |
 | Monitoramento (custos, métricas) | T019–T020 | ✅ |
 | Integrações (Redis, Chatwoot) | T021–T022 | ✅ |
-| Documentação e portfólio | T023–T024 | T023 ✅ · T024 ⏳ |
+| Documentação e portfólio | T023–T024 | ✅ |
