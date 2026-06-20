@@ -12,6 +12,7 @@ const els = {
   handoffBanner: document.getElementById("handoff-banner"),
   convInfo: document.getElementById("conv-info"),
   leadInfo: document.getElementById("lead-info"),
+  costInfo: document.getElementById("cost-info"),
   solarInfo: document.getElementById("solar-info"),
   eventsList: document.getElementById("events-list"),
 };
@@ -97,8 +98,38 @@ async function refreshInspector() {
   }
   renderConversation(detail.conversation);
   renderLead(detail.lead);
+  renderCost(detail.events);
   renderSolar(detail.geospatial);
   renderEvents(detail.events);
+}
+
+function renderCost(events) {
+  const turns = (events || []).filter((e) => e.event_type === "agent_turn_completed");
+  if (!turns.length) {
+    els.costInfo.innerHTML = '<span class="muted">—</span>';
+    return;
+  }
+  let inTok = 0;
+  let outTok = 0;
+  let cost = 0;
+  let provider = "—";
+  let model = "—";
+  for (const t of turns) {
+    const p = t.payload || {};
+    inTok += Number(p.input_tokens) || 0;
+    outTok += Number(p.output_tokens) || 0;
+    cost += Number(p.estimated_cost) || 0;
+    if (p.provider) provider = p.provider;
+    if (p.model_name) model = p.model_name;
+  }
+  const last = turns[turns.length - 1].payload || {};
+  const usd = (v) => "US$ " + Number(v).toFixed(6);
+  els.costInfo.innerHTML =
+    row("Provider / modelo", `${provider} · ${model}`) +
+    row("Turnos", turns.length) +
+    row("Tokens (entrada/saída)", `${inTok} / ${outTok}`) +
+    row("Custo do último turno", usd(last.estimated_cost || 0)) +
+    `<div class="row"><span class="label">Custo total estimado</span><span class="value">${usd(cost)}</span></div>`;
 }
 
 function renderConversation(c) {
@@ -206,6 +237,7 @@ function resetConversation() {
   els.handoffBanner.classList.add("hidden");
   els.convInfo.innerHTML = '<span class="muted">Sem conversa ainda.</span>';
   els.leadInfo.innerHTML = '<span class="muted">—</span>';
+  els.costInfo.innerHTML = '<span class="muted">—</span>';
   els.solarInfo.innerHTML = '<span class="muted">Ainda não realizada.</span>';
   els.eventsList.innerHTML = '<li class="muted">—</li>';
   els.input.focus();
