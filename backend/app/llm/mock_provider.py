@@ -19,17 +19,32 @@ class MockLLMProvider(BaseLLMProvider):
             extracted_data.get("average_energy_bill") is not None
             or lead_data.get("average_energy_bill") is not None
         )
+        has_address = bool(lead_data.get("address"))
+        has_geospatial = request.geospatial is not None
 
         content: str
         next_state: str
 
         if request.lead_temperature == "hot":
-            content = (
-                "Seu perfil já mostra um bom potencial preliminar para energia solar. "
-                "Se quiser, você pode me informar o endereço do imóvel para avançarmos "
-                "para uma pré-análise geoespacial preliminar."
-            )
-            next_state = "ready_for_geospatial_pre_analysis"
+            # A hot lead progresses through states instead of repeating one line:
+            # ask for the address -> ask for consent -> report the solar estimate
+            # and hand off. The panel estimate is verbalized when available.
+            if has_geospatial:
+                content = self._geospatial_summary(request.geospatial or {})
+                next_state = "handed_off_to_specialist"
+            elif has_address:
+                content = (
+                    "Perfeito, já registrei seu endereço. Se você autorizar, sigo com uma "
+                    "pré-análise geoespacial preliminar do potencial solar nesse local."
+                )
+                next_state = "awaiting_geospatial_consent"
+            else:
+                content = (
+                    "Seu perfil já mostra um bom potencial preliminar para energia solar. "
+                    "Se quiser, você pode me informar o endereço do imóvel para avançarmos "
+                    "para uma pré-análise geoespacial preliminar."
+                )
+                next_state = "ready_for_geospatial_pre_analysis"
         elif request.lead_temperature == "warm":
             if not has_city and not has_bill:
                 content = (
@@ -101,4 +116,26 @@ class MockLLMProvider(BaseLLMProvider):
                 "next_state": next_state,
             },
             next_state=next_state,
+        )
+
+    @staticmethod
+    def _geospatial_summary(geospatial: dict) -> str:
+        """Build the post-analysis message, verbalizing the panel estimate."""
+        solar = geospatial.get("solar") or {}
+        panel_min = solar.get("estimated_panel_min")
+        panel_max = solar.get("estimated_panel_max")
+
+        if solar.get("solar_data_available") and panel_min and panel_max:
+            kwp = solar.get("estimated_system_kwp")
+            system = f" (um sistema de aproximadamente {kwp} kWp)" if kwp else ""
+            return (
+                "Concluí uma pré-análise preliminar do seu endereço. Para o seu padrão de "
+                f"consumo, estimo entre {panel_min} e {panel_max} placas solares{system}. "
+                "É uma estimativa preliminar e não substitui vistoria técnica — já "
+                "encaminhei seu caso para um especialista, que vai detalhar a proposta."
+            )
+
+        return (
+            "Concluí uma pré-análise preliminar do seu endereço e o potencial é promissor. "
+            "Encaminhei seu caso para um especialista, que vai te contatar com os próximos passos."
         )
