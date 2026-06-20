@@ -28,6 +28,7 @@ O projeto já possui:
 - registro de custos do agente: evento `agent_turn_completed` por turno e `MessageRepository.aggregate_usage` (tokens/custo, com breakdown por modelo)
 - endpoint `GET /metrics` com dados agregados (leads, conversas, uso/custo, eventos)
 - sessão de conversa efêmera em Redis (cache com TTL; Postgres continua a fonte da verdade) com recuperação por turno e degradação graciosa
+- webhook do Chatwoot (`POST /webhooks/chatwoot`): recebe mensagens `incoming`, processa pelo agente e responde via API do Chatwoot
 
 ## Stack
 
@@ -107,6 +108,15 @@ SESSION_TTL_SECONDS=3600
 ```
 
 O Redis guarda um snapshot efêmero da conversa (`current_state`, `lead_id`, score, `turn_count`) por `SESSION_TTL_SECONDS`, recuperado no início de cada turno. É um cache: se o Redis estiver indisponível, o `POST /chat` continua funcionando (o Postgres é a fonte da verdade) e o evento `session_store_unavailable` é registrado.
+
+### Integração Chatwoot
+
+```env
+CHATWOOT_BASE_URL=https://app.chatwoot.com
+CHATWOOT_API_ACCESS_TOKEN=seu_token
+```
+
+Sem essas variáveis, o webhook ainda processa a mensagem recebida, mas não envia a resposta (`reply_sent: false`).
 
 ## Como subir o projeto
 
@@ -360,6 +370,24 @@ Resultado esperado (exemplo):
 - `usage` reusa o agregador de uso (`MessageRepository.aggregate_usage`) introduzido no T019.
 - `events` conta os `agent_events` por tipo (mais frequentes primeiro).
 
+## Como validar o webhook do Chatwoot
+
+O endpoint `POST /webhooks/chatwoot` recebe eventos do Chatwoot. Apenas `message_created` com `message_type: incoming` é processado (mensagens `outgoing` são ignoradas para evitar loop). A continuidade da conversa é mantida em Redis (mapeando a conversa do Chatwoot para a conversa interna).
+
+```bash
+curl -X POST http://localhost:8010/webhooks/chatwoot \
+  -H "Content-Type: application/json" \
+  -d "{\"event\":\"message_created\",\"message_type\":\"incoming\",\"content\":\"Olá, moro em Natal e tenho interesse em energia solar\",\"conversation\":{\"id\":42},\"account\":{\"id\":1}}"
+```
+
+Resultado esperado (sem `CHATWOOT_*` configurado):
+
+```json
+{"status": "handled", "conversation_id": "uuid-da-conversa", "reply_sent": false, "reply_error": "CHATWOOT_BASE_URL and CHATWOOT_API_ACCESS_TOKEN must be set"}
+```
+
+Com as variáveis configuradas, `reply_sent` é `true` e a resposta do agente é enviada de volta ao Chatwoot como mensagem `outgoing`.
+
 ## Como validar se o schema foi aplicado
 
 ```bash
@@ -419,4 +447,4 @@ Após o geocoding, quando há coordenadas, o agente estima o potencial solar pre
 
 ## Próxima etapa recomendada
 
-**T022 — Integrar Chatwoot webhook**, recebendo mensagens e respondendo via API.
+**T023 — Criar README completo**, documentando arquitetura, instalação, fluxo, prints e decisões técnicas.
