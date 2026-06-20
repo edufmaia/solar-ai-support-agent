@@ -67,6 +67,46 @@ docs/
     001-solar-ai-support-agent/
 ```
 
+## Arquitetura
+
+```
+                         ┌──────────────────────────────────────────┐
+   POST /chat ───────────►                                          │
+   POST /webhooks/chatwoot ─► api/  ──►  MockAgentOrchestrator       │
+   GET  /metrics ─────────►  (FastAPI)        (agents/)              │
+   GET  /health[/db] ─────►        │             │                   │
+                         │         │             ├─► services/  (extração, scoring, métricas)
+                         │         │             ├─► tools/     (save/update/classify/handoff)
+                         │         │             ├─► llm/       (mock | openai | claude)
+                         │         │             ├─► geocoding/ (mock | nominatim)
+                         │         │             ├─► solar/     (mock)
+                         │         │             └─► integrations/chatwoot/
+                         │         ▼             ▼
+                         │   repositories/ (SQL)   session/ (Redis)
+                         └─────────┬───────────────────┬────────────┘
+                                   ▼                   ▼
+                            PostgreSQL            Redis (cache/TTL)
+                         (fonte da verdade)   (sessão + mapa Chatwoot)
+```
+
+`MockAgentOrchestrator.handle_chat()` é o coração do sistema. Para cada mensagem, em ordem: recupera/cria a conversa → recupera a sessão efêmera no Redis → persiste a mensagem do usuário → extrai dados do lead → cria/atualiza e associa o lead → calcula o score base → (com consentimento + endereço) faz geocoding + potencial solar → reavalia o score com os dados geoespaciais → decide handoff humano (usuário/`hot`/`technical_review`) → monta o contexto e chama o LLM → avança o estado da conversa → persiste a resposta → emite `agent_turn_completed` (custo/tokens consolidados) → salva o snapshot da sessão no Redis. Cada passo relevante emite um `agent_event` para rastreabilidade.
+
+O mesmo orquestrador atende os dois canais de entrada (`POST /chat` e o webhook do Chatwoot). O PostgreSQL é a fonte da verdade; o Redis é um cache efêmero (sessão da conversa + mapeamento Chatwoot→conversa interna) com degradação graciosa.
+
+### Componentes
+
+| Camada | Pasta | Responsabilidade |
+|---|---|---|
+| API | `app/api/` | Rotas FastAPI (`chat`, `chatwoot`, `metrics`, `health`) |
+| Orquestrador | `app/agents/` | Fluxo de conversa, eventos, sessão |
+| Serviços | `app/services/` | Extração de lead, scoring, métricas, webhook Chatwoot |
+| Tools | `app/tools/` | `save_lead`, `update_lead`, `classify_lead`, `request_human_handoff` |
+| LLM | `app/llm/` | `BaseLLMProvider` + mock/OpenAI/Claude (factory por env) |
+| Geoespacial | `app/geocoding/`, `app/solar/` | Geocoding (mock/Nominatim) e potencial solar (mock) |
+| Integrações | `app/integrations/chatwoot/` | Cliente Chatwoot + mapa de conversa em Redis |
+| Persistência | `app/repositories/` | SQL manual via SQLAlchemy `text()` |
+| Sessão | `app/session/` | Cache de sessão da conversa em Redis |
+
 ## Configuração de ambiente
 
 Use `.env.example` como referência.
@@ -404,6 +444,50 @@ Resultado esperado: tabelas como:
 - `model_costs`
 - `knowledge_documents`
 
+## Endpoints
+
+| Método | Rota | Descrição |
+|---|---|---|
+| `GET` | `/health` | Liveness — `{"status":"ok"}` |
+| `GET` | `/health/db` | Checa conexão com o PostgreSQL |
+| `POST` | `/chat` | Conversa com o agente (cria/recupera conversa, responde) |
+| `POST` | `/webhooks/chatwoot` | Recebe mensagens do Chatwoot e responde via API |
+| `GET` | `/metrics` | Métricas agregadas (leads, conversas, uso/custo, eventos) |
+
+Docs interativas (Swagger) em `http://localhost:8010/docs`.
+
+## Testes
+
+A suíte unitária roda com `pytest` dentro do container; os scripts de integração batem em PostgreSQL + Redis reais e limpam o que criam.
+
+```bash
+# Unitários (rápidos, sem I/O externo)
+docker compose -p solar-ai-support-agent exec backend python -m pytest tests/unit -q
+
+# Integração (exigem a stack de pé e o schema aplicado)
+docker compose -p solar-ai-support-agent exec backend python tests/repository_smoke_test.py
+docker compose -p solar-ai-support-agent exec backend python tests/agent_turn_event_test.py
+docker compose -p solar-ai-support-agent exec backend python tests/metrics_test.py
+docker compose -p solar-ai-support-agent exec backend python tests/session_test.py
+docker compose -p solar-ai-support-agent exec backend python tests/chatwoot_test.py
+```
+
+> O serviço `backend` roda uma imagem buildada (sem volume mount do código). Após editar `backend/`, rode `docker compose -p solar-ai-support-agent up --build -d backend` antes de testar.
+
+## Decisões técnicas
+
+- **SQL manual em vez de ORM:** os repositories usam `SQLAlchemy text()` com `commit/rollback` por método; os schemas Pydantic são a única representação tipada (`Model.model_validate(dict(row))`). Mantém o controle do SQL explícito e o projeto enxuto.
+- **`agent_events` como trilha de auditoria:** cada passo relevante emite um evento, e cada turno é resumido em `agent_turn_completed` (tokens/modelo/custo/nº de eventos) — a base do `GET /metrics`.
+- **Provider de LLM plugável:** `BaseLLMProvider` + factory por `LLM_PROVIDER` (`mock`/`openai`/`claude`), com fallback para `mock`; trocar de modelo é trocar uma env var.
+- **PostgreSQL como fonte da verdade, Redis como cache:** a sessão da conversa e o mapa Chatwoot→conversa vivem no Redis com TTL; se o Redis cair, o fluxo continua e registra `session_store_unavailable`.
+- **Webhook idempotente:** o `POST /webhooks/chatwoot` sempre responde `200` (mesmo se o envio da resposta falhar), evitando reentregas em loop do Chatwoot; mensagens `outgoing` são ignoradas para não responder a si mesmo.
+- **Pré-análise geoespacial, não vistoria:** geocoding + potencial solar produzem uma estimativa preliminar e disparam handoff por `technical_review` quando necessário.
+- **Português no domínio, inglês no código:** respostas do agente, prompts e termos de negócio em pt-BR; identificadores e comentários em inglês.
+
+## Demonstração
+
+> _Prints/GIF da API em ação (Swagger `/docs`, um `POST /chat` e o `GET /metrics`) podem ser adicionados aqui._ Veja o roteiro de demonstração em [`docs/demo-script.md`](docs/demo-script.md).
+
 ## Documentação disponível
 
 - `docs/specs/001-solar-ai-support-agent/requirements.md`
@@ -445,6 +529,15 @@ Resultado esperado:
 
 Após o geocoding, quando há coordenadas, o agente estima o potencial solar preliminar (faixa de painéis, kWp, nível de confiança e necessidade de revisão técnica) com base na conta de energia do lead — sem conta, cai para uma estimativa determinística por coordenadas. `SOLAR_PROVIDER` aceita `mock` (default); o resultado é gravado nas colunas solares de `geospatial_analysis` e registrado no evento `solar_potential_completed`. É uma pré-análise e não substitui vistoria técnica.
 
-## Próxima etapa recomendada
+## Roadmap
 
-**T023 — Criar README completo**, documentando arquitetura, instalação, fluxo, prints e decisões técnicas.
+Progresso: **24/25 tarefas (96%)** — backend completo e documentado. Detalhe em [`docs/specs/001-solar-ai-support-agent/tasks.md`](docs/specs/001-solar-ai-support-agent/tasks.md).
+
+| Fase | Tarefas | Status |
+|---|---|---|
+| Setup, modelo de dados, agente básico | T001–T011 | ✅ |
+| Function calling (tools + extração estruturada) | T012–T015 | ✅ |
+| Geoespacial (geocoding, solar, score) | T016–T018 | ✅ |
+| Monitoramento (custos, métricas) | T019–T020 | ✅ |
+| Integrações (Redis, Chatwoot) | T021–T022 | ✅ |
+| Documentação e portfólio | T023–T024 | T023 ✅ · T024 ⏳ |
