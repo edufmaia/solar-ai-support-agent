@@ -29,6 +29,7 @@ O projeto já possui:
 - endpoint `GET /metrics` com dados agregados (leads, conversas, uso/custo, eventos)
 - sessão de conversa efêmera em Redis (cache com TTL; Postgres continua a fonte da verdade) com recuperação por turno e degradação graciosa
 - webhook do Chatwoot (`POST /webhooks/chatwoot`): recebe mensagens `incoming`, processa pelo agente e responde via API do Chatwoot
+- interface web em `/ui` (chat + inspector ao vivo) e endpoint `GET /conversations/{id}` (detalhe consolidado)
 
 ## Stack
 
@@ -451,10 +452,23 @@ Resultado esperado: tabelas como:
 | `GET` | `/health` | Liveness — `{"status":"ok"}` |
 | `GET` | `/health/db` | Checa conexão com o PostgreSQL |
 | `POST` | `/chat` | Conversa com o agente (cria/recupera conversa, responde) |
+| `GET` | `/conversations/{id}` | Detalhe consolidado (conversa + lead + análise solar + eventos) |
 | `POST` | `/webhooks/chatwoot` | Recebe mensagens do Chatwoot e responde via API |
 | `GET` | `/metrics` | Métricas agregadas (leads, conversas, uso/custo, eventos) |
+| `GET` | `/ui/` | Interface web de chat + inspector (SPA estática) |
 
 Docs interativas (Swagger) em `http://localhost:8010/docs`.
+
+## Interface web (chat + inspector)
+
+Acesse **`http://localhost:8010/ui/`** (a raiz `/` redireciona para lá). É uma SPA estática, sem build, servida pelo próprio FastAPI. À esquerda você conversa com o agente; à direita um **inspector** mostra, ao vivo, o que foi salvo no banco a cada turno:
+
+- **Conversa:** estado atual, canal e um banner destacado quando a conversa é **encaminhada para atendimento humano**.
+- **Lead:** nome, cidade, endereço, conta média, intenção e **score + temperatura** (badge hot/warm/cold).
+- **Análise solar:** quando o usuário autoriza e informa o endereço — **faixa de placas estimada**, **kWp**, nível de confiança e a flag **"requer revisão técnica"**.
+- **Eventos do agente:** a trilha de `agent_events` do turno, destacando handoff/solar/score.
+
+Roteiro sugerido para ver tudo preencher: (1) "Olá, sou a Ana de Natal, moro na Rua das Flores 123, minha conta vem R$ 800 e quero energia solar" → lead criado e pontuado; (2) "Autorizo a análise, pode verificar meu endereço" → geocoding + potencial solar + (lead quente) encaminhamento para humano.
 
 ## Testes
 
