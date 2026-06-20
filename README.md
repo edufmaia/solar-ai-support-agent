@@ -27,6 +27,7 @@ O projeto já possui:
 - geocoding (mock/Nominatim) e potencial solar (mock) com handoff por `technical_review`
 - registro de custos do agente: evento `agent_turn_completed` por turno e `MessageRepository.aggregate_usage` (tokens/custo, com breakdown por modelo)
 - endpoint `GET /metrics` com dados agregados (leads, conversas, uso/custo, eventos)
+- sessão de conversa efêmera em Redis (cache com TTL; Postgres continua a fonte da verdade) com recuperação por turno e degradação graciosa
 
 ## Stack
 
@@ -95,6 +96,17 @@ Observações:
 - `LLM_PROVIDER` aceita atualmente `mock`, `openai` e `claude`.
 - Se `LLM_PROVIDER=openai` e `OPENAI_API_KEY` não estiver definida, `POST /chat` retorna erro claro de configuração.
 - O fallback padrão continua sendo `mock`.
+
+### Sessão em Redis
+
+```env
+REDIS_HOST=redis
+REDIS_PORT=6379
+REDIS_URL=redis://redis:6379/0
+SESSION_TTL_SECONDS=3600
+```
+
+O Redis guarda um snapshot efêmero da conversa (`current_state`, `lead_id`, score, `turn_count`) por `SESSION_TTL_SECONDS`, recuperado no início de cada turno. É um cache: se o Redis estiver indisponível, o `POST /chat` continua funcionando (o Postgres é a fonte da verdade) e o evento `session_store_unavailable` é registrado.
 
 ## Como subir o projeto
 
@@ -273,9 +285,11 @@ Eventos esperados em modo mock:
 - `solar_potential_completed` (após o geocoding, quando há coordenadas)
 - `lead_score_updated` (quando a análise geoespacial/solar altera o score)
 - `human_handoff_requested` (usuário pede humano, lead `hot`, ou `technical_review` da análise solar)
+- `session_recovered` (apenas quando a conversa é reusada e há sessão em cache no Redis)
 - `llm_mock_response_generated`
 - `assistant_mock_response_created`
 - `agent_turn_completed` (resumo do turno: tokens, modelo, custo estimado e nº de eventos)
+- `session_store_unavailable` (apenas em degradação, se o Redis estiver fora)
 
 Eventos esperados em modo OpenAI:
 
@@ -288,9 +302,11 @@ Eventos esperados em modo OpenAI:
 - `solar_potential_completed` (após o geocoding, quando há coordenadas)
 - `lead_score_updated` (quando a análise geoespacial/solar altera o score)
 - `human_handoff_requested` (usuário pede humano, lead `hot`, ou `technical_review` da análise solar)
+- `session_recovered` (apenas quando a conversa é reusada e há sessão em cache no Redis)
 - `llm_openai_response_generated`
 - `assistant_mock_response_created`
 - `agent_turn_completed` (resumo do turno: tokens, modelo, custo estimado e nº de eventos)
+- `session_store_unavailable` (apenas em degradação, se o Redis estiver fora)
 
 Limitação atual:
 
@@ -403,4 +419,4 @@ Após o geocoding, quando há coordenadas, o agente estima o potencial solar pre
 
 ## Próxima etapa recomendada
 
-**T021 — Integrar Redis para sessão**, salvando o estado temporário da conversa.
+**T022 — Integrar Chatwoot webhook**, recebendo mensagens e respondendo via API.
