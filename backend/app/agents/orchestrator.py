@@ -108,9 +108,15 @@ class MockAgentOrchestrator:
             if updated_lead is not None:
                 lead = updated_lead
 
-        conversation = self._maybe_request_handoff(conversation, extraction, scoring)
-
         geospatial = self._maybe_run_geocoding(conversation, lead, extraction)
+
+        scoring = self._maybe_apply_geospatial_score(conversation, lead, scoring, geospatial)
+        if scoring is not None and lead is not None:
+            updated_lead = self.lead_repository.get_by_id(lead.id)
+            if updated_lead is not None:
+                lead = updated_lead
+
+        conversation = self._maybe_request_handoff(conversation, extraction, scoring, geospatial)
 
         llm_request = self._build_llm_request(
             conversation=conversation,
@@ -349,11 +355,50 @@ class MockAgentOrchestrator:
         )
         return scoring
 
+    def _maybe_apply_geospatial_score(
+        self,
+        conversation: ConversationRead,
+        lead: LeadRead | None,
+        scoring: LeadScoringResult | None,
+        geospatial: dict | None,
+    ) -> LeadScoringResult | None:
+        if scoring is None or lead is None or geospatial is None:
+            return scoring
+
+        new_scoring = self.lead_scoring_service.apply_geospatial(scoring, geospatial)
+        if (
+            new_scoring.lead_score == scoring.lead_score
+            and new_scoring.lead_temperature == scoring.lead_temperature
+        ):
+            return scoring
+
+        self.lead_repository.update_score(
+            lead.id, new_scoring.lead_score, new_scoring.lead_temperature
+        )
+        geo_reasons = new_scoring.score_reasons[len(scoring.score_reasons):]
+        self.agent_event_repository.create(
+            AgentEventCreate(
+                conversation_id=conversation.id,
+                lead_id=lead.id,
+                event_type="lead_score_updated",
+                event_source=self.EVENT_SOURCE,
+                payload={
+                    "previous_score": scoring.lead_score,
+                    "lead_score": new_scoring.lead_score,
+                    "lead_temperature": new_scoring.lead_temperature,
+                    "delta": new_scoring.lead_score - scoring.lead_score,
+                    "score_reasons": geo_reasons,
+                },
+            )
+        )
+        return new_scoring
+
     def _maybe_request_handoff(
         self,
         conversation: ConversationRead,
         extraction: LeadExtractionResult,
         scoring: LeadScoringResult | None,
+        geospatial: dict | None = None,
     ) -> ConversationRead:
         if conversation.assigned_to_human:
             return conversation
@@ -362,6 +407,8 @@ class MockAgentOrchestrator:
             reason = "user_requested"
         elif scoring is not None and scoring.lead_temperature == "hot":
             reason = "hot_lead"
+        elif ((geospatial or {}).get("solar") or {}).get("requires_technical_review"):
+            reason = "technical_review"
         else:
             return conversation
 

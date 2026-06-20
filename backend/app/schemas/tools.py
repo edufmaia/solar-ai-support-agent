@@ -6,7 +6,7 @@ from pydantic import BaseModel
 
 from .lead_scoring import LeadIntent, PropertyType
 
-HandoffReason = Literal["user_requested", "hot_lead"]
+HandoffReason = Literal["user_requested", "hot_lead", "technical_review"]
 
 
 class SaveLeadInput(BaseModel):
