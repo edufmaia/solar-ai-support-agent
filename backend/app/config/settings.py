@@ -42,6 +42,11 @@ class Settings(BaseSettings):
     redis_url: str | None = None
     session_ttl_seconds: int = 3600
 
+    chatwoot_base_url: str | None = None
+    chatwoot_api_access_token: str | None = None
+    chatwoot_timeout_seconds: float = 5.0
+    chatwoot_conversation_ttl_seconds: int = 604800
+
     def get_database_url(self) -> str:
         if self.database_url:
             return self.database_url
