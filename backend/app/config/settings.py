@@ -37,6 +37,11 @@ class Settings(BaseSettings):
 
     solar_provider: str = "mock"
 
+    redis_host: str = "redis"
+    redis_port: int = 6379
+    redis_url: str | None = None
+    session_ttl_seconds: int = 3600
+
     def get_database_url(self) -> str:
         if self.database_url:
             return self.database_url
@@ -45,6 +50,12 @@ class Settings(BaseSettings):
             f"postgresql+psycopg://{self.database_user}:{self.database_password}"
             f"@{self.database_host}:{self.database_port}/{self.database_name}"
         )
+
+    def get_redis_url(self) -> str:
+        if self.redis_url:
+            return self.redis_url
+
+        return f"redis://{self.redis_host}:{self.redis_port}/0"
 
 
 @lru_cache

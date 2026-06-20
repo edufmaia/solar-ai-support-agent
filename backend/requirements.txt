@@ -7,3 +7,4 @@ openai
 pytest
 anthropic
 httpx
+redis
