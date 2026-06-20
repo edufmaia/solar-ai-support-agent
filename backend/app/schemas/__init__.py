@@ -7,6 +7,7 @@ from .lead_extraction import LeadExtractionResult
 from .lead_scoring import LeadScoringInput, LeadScoringResult
 from .llm import LLMRequest, LLMResponse
 from .message import MessageCreate, MessageRead
+from .usage import UsageAggregate, UsageByModel
 
 __all__ = [
     "AgentEventCreate",
@@ -27,4 +28,6 @@ __all__ = [
     "LLMResponse",
     "MessageCreate",
     "MessageRead",
+    "UsageAggregate",
+    "UsageByModel",
 ]
