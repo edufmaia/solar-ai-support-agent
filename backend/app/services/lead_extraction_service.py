@@ -7,16 +7,30 @@ from .lead_extractor import LeadExtractor
 
 
 class LeadExtractionService(LeadExtractor):
+    # (pattern, splits_origin): for self-introductions ("sou ...") a trailing
+    # " de <lugar>" is treated as an origin city, not part of the name. The
+    # explicit name contexts ("me chamo", "meu nome é") keep the full name so
+    # surnames like "de Souza" are preserved.
     NAME_PATTERNS = [
-        re.compile(r"\bme\s+chamo\s+([^,.;]+)", re.IGNORECASE),
-        re.compile(r"\bmeu\s+nome\s+[ée]\s+([^,.;]+)", re.IGNORECASE),
-        re.compile(r"\bsou\s+(?!de\b|do\b|da\b)([^,.;]+)", re.IGNORECASE),
+        (re.compile(r"\bme\s+chamo\s+([^,.;]+)", re.IGNORECASE), False),
+        (re.compile(r"\bmeu\s+nome\s+[ée]\s+([^,.;]+)", re.IGNORECASE), False),
+        (re.compile(r"\bsou\s+(?!de\b|do\b|da\b)([^,.;]+)", re.IGNORECASE), True),
     ]
 
     CITY_PATTERNS = [
         re.compile(r"\bmoro\s+em\s+([^,.;]+)", re.IGNORECASE),
         re.compile(r"\bsou\s+de\s+([^,.;]+)", re.IGNORECASE),
     ]
+
+    # Origin city in a self-introduction: "sou (a) <nome de 1-3 palavras> de <cidade>".
+    # Used only as a fallback when the explicit CITY_PATTERNS find nothing.
+    ORIGIN_CITY_PATTERN = re.compile(
+        r"\bsou\s+(?:(?:o|a|os|as|um|uma)\s+)?(?:[^,.;\s]+\s+){1,3}de\s+([^,.;]+)",
+        re.IGNORECASE,
+    )
+
+    LEADING_ARTICLE_PATTERN = re.compile(r"^(?:o|a|os|as|um|uma)\s+", re.IGNORECASE)
+    ORIGIN_SPLIT_PATTERN = re.compile(r"\s+de\s+", re.IGNORECASE)
 
     MONEY_PATTERNS = [
         re.compile(r"r\$\s*(\d+(?:[.,]\d{1,2})?)", re.IGNORECASE),
@@ -110,18 +124,19 @@ class LeadExtractionService(LeadExtractor):
         )
 
     def _extract_name(self, message: str) -> str | None:
-        for pattern in self.NAME_PATTERNS:
+        for pattern, splits_origin in self.NAME_PATTERNS:
             match = pattern.search(message)
             if not match:
                 continue
 
-            raw_name = self._clean_fragment(match.group(1))
-            if not raw_name:
-                continue
+            raw_name = self._strip_leading_article(self._clean_fragment(match.group(1)))
+            if splits_origin:
+                # "Carla de Natal" -> "Carla" (the origin city is handled separately)
+                raw_name = self.ORIGIN_SPLIT_PATTERN.split(raw_name, maxsplit=1)[0].strip()
 
-            words = raw_name.split()
-            if 1 <= len(words) <= 4:
-                return " ".join(word.capitalize() for word in words)
+            formatted = self._format_words(raw_name)
+            if formatted:
+                return formatted
 
         return None
 
@@ -131,13 +146,15 @@ class LeadExtractionService(LeadExtractor):
             if not match:
                 continue
 
-            raw_city = self._clean_fragment(match.group(1))
-            if not raw_city:
-                continue
+            formatted = self._format_words(self._strip_leading_article(self._clean_fragment(match.group(1))))
+            if formatted:
+                return formatted
 
-            words = raw_city.split()
-            if 1 <= len(words) <= 4:
-                return " ".join(word.capitalize() for word in words)
+        origin = self.ORIGIN_CITY_PATTERN.search(message)
+        if origin:
+            formatted = self._format_words(self._strip_leading_article(self._clean_fragment(origin.group(1))))
+            if formatted:
+                return formatted
 
         return None
 
@@ -211,3 +228,14 @@ class LeadExtractionService(LeadExtractor):
         cleaned = re.split(r"\b(minha|minhas|meu|meus|quero|tenho|para|e)\b", cleaned, maxsplit=1, flags=re.IGNORECASE)[0]
         cleaned = cleaned.strip(" ,.;:-")
         return cleaned
+
+    @classmethod
+    def _strip_leading_article(cls, text: str) -> str:
+        return cls.LEADING_ARTICLE_PATTERN.sub("", text).strip()
+
+    @staticmethod
+    def _format_words(raw: str) -> str | None:
+        words = raw.split()
+        if 1 <= len(words) <= 4:
+            return " ".join(word.capitalize() for word in words)
+        return None
