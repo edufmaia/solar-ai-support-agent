@@ -459,21 +459,45 @@ Resultado esperado: tabelas como:
 | `GET` | `/conversations/{id}` | Detalhe consolidado (conversa + lead + análise solar + eventos) |
 | `POST` | `/webhooks/chatwoot` | Recebe mensagens do Chatwoot e responde via API |
 | `GET` | `/metrics` | Métricas agregadas (leads, conversas, uso/custo, eventos) |
-| `GET` | `/ui/` | Interface web de chat + inspector (SPA estática) |
+| `GET` | `/ui/` | Chat do cliente final (white-label, SPA estática) |
+| `GET` | `/ui/inspector/` | Inspector interno (chat + painéis de lead/score/custo/solar/eventos) |
+| `GET` | `/ui/branding.json` | Configuração de marca do chat (editável) |
 
 Docs interativas (Swagger) em `http://localhost:8010/docs`.
 
-## Interface web (chat + inspector)
+## Interface web
 
-Acesse **`http://localhost:8010/ui/`** (a raiz `/` redireciona para lá). É uma SPA estática, sem build, servida pelo próprio FastAPI. À esquerda você conversa com o agente; à direita um **inspector** mostra, ao vivo, o que foi salvo no banco a cada turno:
+São duas telas estáticas (HTML/CSS/JS vanilla, sem build) servidas pelo próprio FastAPI.
+
+### Chat do cliente — `http://localhost:8010/ui/`
+
+O **chat do cliente final** (a raiz `/` redireciona para lá): um cartão centralizado, limpo e responsivo (vira tela cheia no mobile), com indicador de "digitando…", mensagem de boas-vindas na carga e persistência da conversa em `localStorage` (recarregar a página mantém o histórico; o botão ↺ recomeça). Todo conteúdo é renderizado via `textContent` (imune a XSS).
+
+#### White-label via `branding.json`
+
+A marca é configurada em **`backend/app/static/branding.json`** — **sem editar código**. Campos:
+
+| Campo | Efeito |
+|---|---|
+| `brand_name` | Nome no header, título da aba e rodapé "Powered by" |
+| `logo_url` | URL/caminho do logo (vazio → emoji ☀️) |
+| `primary_color` / `text_on_primary` | Cor de destaque (header, bolhas do usuário, botão) |
+| `subtitle` | Texto secundário no header |
+| `welcome_message` | Bolha de boas-vindas inicial |
+| `input_placeholder` | Placeholder do campo de mensagem |
+| `show_powered_by` | Liga/desliga o rodapé "Powered by {brand_name}" |
+
+Campos ausentes ou JSON inválido caem em defaults — a UI nunca quebra. Como o `backend` roda uma imagem buildada, rode `docker compose -p solar-ai-support-agent up --build -d backend` após editar (ou monte o arquivo por volume).
+
+### Inspector interno — `http://localhost:8010/ui/inspector/`
+
+A visão de **equipe/demo** (acesso por URL direta, sem link na tela do cliente; o painel admin com login virá no Sub-projeto C). À esquerda você conversa; à direita um **inspector** mostra, ao vivo, o que foi salvo no banco a cada turno:
 
 - **Conversa:** estado atual, canal e um banner destacado quando a conversa é **encaminhada para atendimento humano**.
 - **Lead:** nome, cidade, endereço, conta média, intenção e **score + temperatura** (badge hot/warm/cold).
 - **Análise solar:** quando o usuário autoriza e informa o endereço — uma **imagem de satélite do imóvel** (Esri World Imagery, via lat/lon geocodificada), a **faixa de placas estimada**, **kWp**, nível de confiança e a flag **"requer revisão técnica"**.
 - **Custo & uso (LLM):** provider/modelo, tokens e **custo estimado** acumulado da conversa (turnos mock aparecem com custo zero).
 - **Eventos do agente:** a trilha de `agent_events` do turno, destacando handoff/solar/score.
-
-Ao abrir a UI, o agente já exibe uma **mensagem de boas-vindas** (estática, sem chamar o backend).
 
 Roteiro sugerido para ver tudo preencher: (1) "Olá, sou a Ana de Natal, moro na Rua das Flores 123, minha conta vem R$ 800 e quero energia solar" → lead criado e pontuado; (2) "Autorizo a análise, pode verificar meu endereço" → geocoding + potencial solar + (lead quente) encaminhamento para humano.
 
