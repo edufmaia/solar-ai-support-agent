@@ -1,0 +1,10 @@
+{
+  "brand_name": "Solar AI",
+  "logo_url": "",
+  "primary_color": "#f59e0b",
+  "text_on_primary": "#ffffff",
+  "subtitle": "Atendimento inteligente",
+  "welcome_message": "Olá! 👋 Como posso ajudar com energia solar hoje?",
+  "input_placeholder": "Escreva uma mensagem...",
+  "show_powered_by": true
+}
