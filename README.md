@@ -462,6 +462,8 @@ Resultado esperado: tabelas como:
 | `GET` | `/ui/` | Chat do cliente final (white-label, SPA estática) |
 | `GET` | `/ui/inspector/` | Inspector interno (chat + painéis de lead/score/custo/solar/eventos) |
 | `GET` | `/ui/branding.json` | Configuração de marca do chat (editável) |
+| `GET` | `/ui/widget.js` | Loader do widget embutível (uma linha de `<script>`) |
+| `GET` | `/ui/embed-demo.html` | Página de demo com o widget embutido |
 
 Docs interativas (Swagger) em `http://localhost:8010/docs`.
 
@@ -500,6 +502,21 @@ A visão de **equipe/demo** (acesso por URL direta, sem link na tela do cliente;
 - **Eventos do agente:** a trilha de `agent_events` do turno, destacando handoff/solar/score.
 
 Roteiro sugerido para ver tudo preencher: (1) "Olá, sou a Ana de Natal, moro na Rua das Flores 123, minha conta vem R$ 800 e quero energia solar" → lead criado e pontuado; (2) "Autorizo a análise, pode verificar meu endereço" → geocoding + potencial solar + (lead quente) encaminhamento para humano.
+
+### Widget embutível — uma linha de `<script>`
+
+Para colocar o chat em **qualquer site**, a empresa adiciona uma linha apontando para a instância dela (modelo **self-host**: 1 empresa = 1 instância):
+
+```html
+<script src="https://SEU-HOST/ui/widget.js"
+        data-teaser="Precisa de ajuda com energia solar?"></script>
+```
+
+Isso injeta um **botão flutuante** (canto inferior direito); ao clicar, abre o chat (`/ui/`) dentro de um **iframe**. Como o iframe é servido pelo próprio host, o `fetch('/chat')` é **same-origin — não há CORS** envolvido. A cor do botão sincroniza com `branding.json` via `postMessage` (o chat posta a marca para a página pai), e o botão ✕ do chat recolhe o painel.
+
+- `data-teaser` é **opcional**: ausente → texto padrão; `data-teaser="off"` desliga o balão-convite; o balão aparece uma vez por visitante (`localStorage`).
+- Posição fixa no canto inferior direito.
+- Demonstração pronta em **`http://localhost:8010/ui/embed-demo.html`** (uma página fictícia de empresa com o widget embutido).
 
 ## Testes
 
