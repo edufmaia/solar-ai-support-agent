@@ -173,3 +173,34 @@
     box-shadow: none;
   }
 }
+
+.chat-close {
+  display: none;
+  background: transparent;
+  border: none;
+  color: inherit;
+  font-size: 16px;
+  cursor: pointer;
+  opacity: 0.85;
+  padding: 2px 6px;
+}
+
+.chat-close:hover {
+  opacity: 1;
+}
+
+html.embed .chat-close {
+  display: inline-block;
+}
+
+html.embed .chat-page {
+  padding: 0;
+  min-height: 100vh;
+}
+
+html.embed #chat-card {
+  width: 100%;
+  height: 100vh;
+  border-radius: 0;
+  box-shadow: none;
+}
