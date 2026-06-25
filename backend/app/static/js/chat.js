@@ -4,6 +4,7 @@ import { postChat } from "./api.js";
 import { loadBranding } from "./branding.js";
 
 const STORAGE_KEY = "solar_ai_conversation_id";
+const EMBED = new URLSearchParams(location.search).get("embed") === "1";
 const state = {
   conversationId: localStorage.getItem(STORAGE_KEY),
   sending: false,
@@ -15,6 +16,7 @@ const els = {
   input: document.getElementById("message-input"),
   sendBtn: document.getElementById("send-btn"),
   newConv: document.getElementById("new-conversation"),
+  header: document.querySelector(".chat-header"),
   brandLogo: document.getElementById("brand-logo"),
   brandName: document.getElementById("brand-name"),
   brandSubtitle: document.getElementById("brand-subtitle"),
@@ -22,6 +24,19 @@ const els = {
 };
 
 let branding = null;
+
+function setupEmbed() {
+  document.documentElement.classList.add("embed");
+  const close = document.createElement("button");
+  close.className = "chat-close";
+  close.type = "button";
+  close.setAttribute("aria-label", "Fechar");
+  close.textContent = "✕";
+  close.addEventListener("click", () => {
+    window.parent.postMessage({ type: "solar-ai:close" }, "*");
+  });
+  els.header.appendChild(close);
+}
 
 function addBubble(text, role) {
   const div = document.createElement("div");
@@ -47,6 +62,16 @@ function applyBranding(cfg) {
   if (cfg.show_powered_by) {
     els.footer.textContent = `Powered by ${cfg.brand_name}`;
     els.footer.classList.remove("hidden");
+  }
+  if (EMBED) {
+    window.parent.postMessage(
+      {
+        type: "solar-ai:branding",
+        primary_color: cfg.primary_color,
+        text_on_primary: cfg.text_on_primary,
+      },
+      "*"
+    );
   }
 }
 
@@ -96,6 +121,7 @@ els.form.addEventListener("submit", (e) => {
 els.newConv.addEventListener("click", resetConversation);
 
 (async () => {
+  if (EMBED) setupEmbed();
   branding = await loadBranding();
   applyBranding(branding);
   showWelcome();

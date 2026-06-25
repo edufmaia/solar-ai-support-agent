@@ -48,3 +48,21 @@ def test_inspector_served():
     body = res.text
     assert 'data-role="inspector"' in body
     assert 'id="lead-info"' in body
+
+
+def test_chat_embed_param_ok():
+    res = client.get("/ui/?embed=1")
+    assert res.status_code == 200
+    assert 'data-role="customer-chat"' in res.text
+
+
+def test_widget_js_served():
+    res = client.get("/ui/widget.js")
+    assert res.status_code == 200
+    assert "javascript" in res.headers["content-type"]
+
+
+def test_embed_demo_served():
+    res = client.get("/ui/embed-demo.html")
+    assert res.status_code == 200
+    assert "widget.js" in res.text
