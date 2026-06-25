@@ -1,5 +1,8 @@
 "use strict";
 
+import { postChat, getConversation } from "./api.js";
+import { loadBranding } from "./branding.js";
+
 const state = { conversationId: null, sending: false };
 
 const WELCOME_TEXT =
@@ -73,16 +76,7 @@ async function sendMessage(message) {
   typing.classList.add("typing");
 
   try {
-    const res = await fetch("/chat", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message, conversation_id: state.conversationId }),
-    });
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error(err.detail || `HTTP ${res.status}`);
-    }
-    const data = await res.json();
+    const data = await postChat({ message, conversationId: state.conversationId });
     state.conversationId = data.conversation_id;
     els.modeBadge.textContent = `modo: ${data.mode}`;
     typing.classList.remove("typing");
@@ -100,14 +94,8 @@ async function sendMessage(message) {
 
 async function refreshInspector() {
   if (!state.conversationId) return;
-  let detail;
-  try {
-    const res = await fetch(`/conversations/${state.conversationId}`);
-    if (!res.ok) return;
-    detail = await res.json();
-  } catch {
-    return;
-  }
+  const detail = await getConversation(state.conversationId);
+  if (!detail) return;
   renderConversation(detail.conversation);
   renderLead(detail.lead);
   renderCost(detail.events);
@@ -263,5 +251,7 @@ els.form.addEventListener("submit", (e) => {
 });
 
 els.newConv.addEventListener("click", resetConversation);
+
+loadBranding();
 showWelcome();
 els.input.focus();
