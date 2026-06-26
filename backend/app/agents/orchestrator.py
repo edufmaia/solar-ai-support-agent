@@ -121,6 +121,11 @@ class MockAgentOrchestrator:
                 lead = updated_lead
 
         geospatial = self._maybe_run_geocoding(conversation, lead, extraction)
+        if geospatial is None:
+            # The analysis runs once; surface the persisted result on later turns
+            # so the conversation keeps "remembering" it (e.g. while collecting
+            # the contact after the estimate).
+            geospatial = self._existing_geospatial_summary(lead)
 
         scoring = self._maybe_apply_geospatial_score(conversation, lead, scoring, geospatial)
         if scoring is not None and lead is not None:
@@ -128,7 +133,7 @@ class MockAgentOrchestrator:
             if updated_lead is not None:
                 lead = updated_lead
 
-        conversation = self._maybe_request_handoff(conversation, extraction, scoring, geospatial)
+        conversation = self._maybe_request_handoff(conversation, extraction, scoring, geospatial, lead)
 
         llm_request = self._build_llm_request(
             conversation=conversation,
@@ -506,9 +511,12 @@ class MockAgentOrchestrator:
         extraction: LeadExtractionResult,
         scoring: LeadScoringResult | None,
         geospatial: dict | None = None,
+        lead: LeadRead | None = None,
     ) -> ConversationRead:
         if conversation.assigned_to_human:
             return conversation
+
+        has_contact = bool((lead.phone if lead is not None else None) or extraction.phone)
 
         if extraction.wants_human:
             reason = "user_requested"
@@ -516,6 +524,9 @@ class MockAgentOrchestrator:
             reason = "hot_lead"
         elif ((geospatial or {}).get("solar") or {}).get("requires_technical_review"):
             reason = "technical_review"
+        elif geospatial is not None and has_contact:
+            # Analysis done and we have a way to reach the lead — send to a specialist.
+            reason = "analysis_complete_with_contact"
         else:
             return conversation
 
@@ -539,6 +550,34 @@ class MockAgentOrchestrator:
             )
         )
         return updated if updated is not None else conversation
+
+    def _existing_geospatial_summary(self, lead: LeadRead | None) -> dict | None:
+        """Rebuild the geospatial summary from a persisted analysis, so later turns
+        still 'see' a completed analysis (same shape as _maybe_run_geocoding)."""
+        if lead is None:
+            return None
+        analysis = self.geospatial_analysis_repository.get_latest_by_lead_id(lead.id)
+        if analysis is None:
+            return None
+        return {
+            "found": analysis.latitude is not None and analysis.longitude is not None,
+            "address_confidence": analysis.address_confidence,
+            "latitude": float(analysis.latitude) if analysis.latitude is not None else None,
+            "longitude": float(analysis.longitude) if analysis.longitude is not None else None,
+            "formatted_address": analysis.formatted_address,
+            "solar": {
+                "solar_data_available": analysis.solar_data_available,
+                "estimated_panel_min": analysis.estimated_panel_min,
+                "estimated_panel_max": analysis.estimated_panel_max,
+                "estimated_system_kwp": (
+                    float(analysis.estimated_system_kwp)
+                    if analysis.estimated_system_kwp is not None
+                    else None
+                ),
+                "confidence_level": analysis.confidence_level,
+                "requires_technical_review": analysis.requires_technical_review,
+            },
+        }
 
     def _maybe_run_geocoding(
         self,

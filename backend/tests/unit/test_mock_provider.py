@@ -3,6 +3,8 @@ from uuid import uuid4
 from app.llm.mock_provider import MockLLMProvider
 from app.schemas.llm import LLMRequest
 
+PHONE = "84999990000"
+
 
 def _request(**overrides) -> LLMRequest:
     base = dict(conversation_id=uuid4(), user_message="oi", lead_temperature="hot")
@@ -37,20 +39,67 @@ def _geospatial_with_solar():
     }
 
 
-def test_hot_after_geospatial_reports_panels_and_hands_off():
+def test_geospatial_with_contact_reports_panels_and_hands_off():
     response = MockLLMProvider().generate_response(
-        _request(lead_data={"address": "Rua das Flores, 123"}, geospatial=_geospatial_with_solar())
+        _request(
+            lead_data={"address": "Rua das Flores, 123", "phone": PHONE},
+            geospatial=_geospatial_with_solar(),
+        )
     )
     assert response.next_state == "handed_off_to_specialist"
     assert "especialista" in response.content.lower()
     # the agent verbalizes the estimated panel quantity for the consumption
     assert "12" in response.content and "14" in response.content
     assert "placa" in response.content.lower()
+    # the handoff message references the real contact it will use
+    assert PHONE in response.content
 
 
-def test_hot_after_geospatial_without_solar_still_hands_off():
+def test_geospatial_without_contact_reports_panels_and_collects_contact():
     response = MockLLMProvider().generate_response(
-        _request(lead_data={"address": "Rua X"}, geospatial={"found": True})
+        _request(
+            lead_data={"address": "Rua das Flores, 123"},  # no phone
+            geospatial=_geospatial_with_solar(),
+        )
+    )
+    # still reports the estimate (no more ignoring a completed analysis)
+    assert "12" in response.content and "14" in response.content
+    assert "placa" in response.content.lower()
+    # but collects contact instead of falsely claiming a handoff
+    assert response.next_state == "awaiting_contact"
+    assert "telefone" in response.content.lower() or "whatsapp" in response.content.lower()
+    assert "encaminhei" not in response.content.lower()
+
+
+def test_warm_lead_with_geospatial_reports_analysis_instead_of_looping():
+    # regression for the reported bug: a warm lead that already ran the analysis
+    # must report it, not keep asking for data.
+    response = MockLLMProvider().generate_response(
+        _request(
+            lead_temperature="warm",
+            lead_data={"address": "Rua X, 1"},  # no phone
+            geospatial=_geospatial_with_solar(),
+        )
+    )
+    assert "placa" in response.content.lower()
+    assert response.next_state == "awaiting_contact"
+
+
+def test_warm_lead_with_geospatial_and_contact_hands_off():
+    response = MockLLMProvider().generate_response(
+        _request(
+            lead_temperature="warm",
+            lead_data={"address": "Rua X, 1", "phone": PHONE},
+            geospatial=_geospatial_with_solar(),
+        )
+    )
+    assert response.next_state == "handed_off_to_specialist"
+    assert "especialista" in response.content.lower()
+
+
+def test_geospatial_without_solar_with_contact_hands_off():
+    response = MockLLMProvider().generate_response(
+        _request(lead_data={"address": "Rua X", "phone": PHONE}, geospatial={"found": True})
     )
     assert response.next_state == "handed_off_to_specialist"
     assert "especialista" in response.content.lower()
