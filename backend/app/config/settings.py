@@ -51,6 +51,12 @@ class Settings(BaseSettings):
     admin_password: str | None = None
     admin_session_ttl_seconds: int = 3600
 
+    overpass_base_url: str = "https://overpass-api.de/api/interpreter"
+    overpass_timeout_seconds: float = 8.0
+    footprint_search_radius_m: int = 30
+    roof_usable_factor: float = 0.5
+    panel_area_m2: float = 2.6
+
     def get_database_url(self) -> str:
         if self.database_url:
             return self.database_url
