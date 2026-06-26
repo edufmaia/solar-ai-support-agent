@@ -39,8 +39,31 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8000/health').status==200 else 1)"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
     ports:
       - "8010:8000"
+
+  migrate:
+    image: postgres:16-alpine
+    restart: "no"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      PGPASSWORD: ${DATABASE_PASSWORD:-solar_password}
+    volumes:
+      - ./database:/schema:ro
+    command: >-
+      psql -h postgres -U ${DATABASE_USER:-solar}
+      -d ${DATABASE_NAME:-solar_ai_support}
+      -v ON_ERROR_STOP=1 -f /schema/schema.sql
 
   postgres:
     image: postgres:16-alpine
