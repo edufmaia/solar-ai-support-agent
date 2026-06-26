@@ -1,4 +1,4 @@
-﻿from decimal import Decimal
+from decimal import Decimal
 
 from ..schemas.llm import LLMRequest, LLMResponse
 from .base import BaseLLMProvider
@@ -21,18 +21,20 @@ class MockLLMProvider(BaseLLMProvider):
         )
         has_address = bool(lead_data.get("address"))
         has_geospatial = request.geospatial is not None
+        phone = lead_data.get("phone") or extracted_data.get("phone")
 
         content: str
         next_state: str
 
-        if request.lead_temperature == "hot":
+        if has_geospatial:
+            # The analysis already ran — report it regardless of temperature.
+            # Only promise a specialist follow-up once we have a way to reach the
+            # lead; otherwise collect the contact first.
+            content, next_state = self._post_analysis_message(request.geospatial or {}, phone)
+        elif request.lead_temperature == "hot":
             # A hot lead progresses through states instead of repeating one line:
-            # ask for the address -> ask for consent -> report the solar estimate
-            # and hand off. The panel estimate is verbalized when available.
-            if has_geospatial:
-                content = self._geospatial_summary(request.geospatial or {})
-                next_state = "handed_off_to_specialist"
-            elif has_address:
+            # ask for the address -> ask for consent -> (analysis handled above).
+            if has_address:
                 content = (
                     "Perfeito, já registrei seu endereço. Se você autorizar, sigo com uma "
                     "pré-análise geoespacial preliminar do potencial solar nesse local."
@@ -118,9 +120,25 @@ class MockLLMProvider(BaseLLMProvider):
             next_state=next_state,
         )
 
+    def _post_analysis_message(self, geospatial: dict, phone: str | None) -> tuple[str, str]:
+        """Report the completed analysis, then either confirm the specialist
+        follow-up (if we have a contact) or collect the contact first."""
+        estimate = self._geospatial_estimate(geospatial)
+        if phone:
+            content = (
+                f"{estimate} Já encaminhei seu caso a um especialista, que vai te "
+                f"contatar no {phone} com a proposta detalhada."
+            )
+            return content, "handed_off_to_specialist"
+        content = (
+            f"{estimate} Para um especialista preparar sua proposta e te retornar, "
+            "qual é o seu nome e telefone (ou WhatsApp)?"
+        )
+        return content, "awaiting_contact"
+
     @staticmethod
-    def _geospatial_summary(geospatial: dict) -> str:
-        """Build the post-analysis message, verbalizing the panel estimate."""
+    def _geospatial_estimate(geospatial: dict) -> str:
+        """Build the estimate sentence, verbalizing the panel quantity when available."""
         solar = geospatial.get("solar") or {}
         panel_min = solar.get("estimated_panel_min")
         panel_max = solar.get("estimated_panel_max")
@@ -131,11 +149,7 @@ class MockLLMProvider(BaseLLMProvider):
             return (
                 "Concluí uma pré-análise preliminar do seu endereço. Para o seu padrão de "
                 f"consumo, estimo entre {panel_min} e {panel_max} placas solares{system}. "
-                "É uma estimativa preliminar e não substitui vistoria técnica — já "
-                "encaminhei seu caso para um especialista, que vai detalhar a proposta."
+                "É uma estimativa preliminar e não substitui vistoria técnica."
             )
 
-        return (
-            "Concluí uma pré-análise preliminar do seu endereço e o potencial é promissor. "
-            "Encaminhei seu caso para um especialista, que vai te contatar com os próximos passos."
-        )
+        return "Concluí uma pré-análise preliminar do seu endereço e o potencial é promissor."
