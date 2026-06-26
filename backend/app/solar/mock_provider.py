@@ -1,15 +1,13 @@
-import hashlib
 from decimal import ROUND_HALF_UP, Decimal
-from math import ceil
 
 from ..schemas.solar import SolarPotentialResult
 from .base import BaseSolarProvider
-
-TARIFF_BRL_PER_KWH = Decimal("0.95")       # tarifa media residencial BR
-PEAK_SUN_HOURS = Decimal("4.5")            # horas de sol pico medias BR
-PERFORMANCE_RATIO = Decimal("0.75")        # perdas do sistema
-PANEL_WATTS = 550                          # modulo de referencia
-TECH_REVIEW_KWP_THRESHOLD = Decimal("10")  # acima disso, exige revisao tecnica
+from .consumption import (
+    PANEL_WATTS,
+    TECH_REVIEW_KWP_THRESHOLD,
+    panels_from_bill,
+    seed_panels,
+)
 
 
 class MockSolarProvider(BaseSolarProvider):
@@ -24,21 +22,19 @@ class MockSolarProvider(BaseSolarProvider):
                 raw_response={"provider": "mock", "reason": "missing_coordinates"},
             )
 
-        if average_energy_bill is not None and average_energy_bill > 0:
-            monthly_kwh = average_energy_bill / TARIFF_BRL_PER_KWH
-            daily_kwh = monthly_kwh / Decimal(30)
-            kwp = daily_kwh / (PEAK_SUN_HOURS * PERFORMANCE_RATIO)
-            panels = ceil(kwp * Decimal(1000) / Decimal(PANEL_WATTS))
+        estimate = panels_from_bill(average_energy_bill)
+        if estimate is not None:
+            panels = estimate.panels
+            kwp = estimate.kwp
             confidence = "medium"
             raw = {
                 "provider": "mock",
                 "average_energy_bill": str(average_energy_bill),
-                "monthly_kwh": str(monthly_kwh),
+                "monthly_kwh": str(estimate.monthly_kwh),
                 "kwp": str(kwp),
             }
         else:
-            seed = int(hashlib.sha256(f"{latitude},{longitude}".encode()).hexdigest(), 16)
-            panels = 6 + (seed % 7)  # 6..12 paineis demonstrativos, deterministico
+            panels = seed_panels(latitude, longitude)
             kwp = Decimal(panels) * Decimal(PANEL_WATTS) / Decimal(1000)
             confidence = "low"
             raw = {"provider": "mock", "reason": "no_bill_deterministic_seed"}
