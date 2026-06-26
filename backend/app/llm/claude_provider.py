@@ -1,4 +1,3 @@
-import json
 from decimal import Decimal, ROUND_HALF_UP
 from typing import Any
 
@@ -7,7 +6,7 @@ from anthropic import Anthropic, APIError
 from ..config.settings import Settings, get_settings
 from ..schemas.llm import LLMRequest, LLMResponse
 from .base import BaseLLMProvider, LLMProviderConfigurationError, LLMProviderInvocationError
-from .context import geospatial_prompt_section
+from .context import build_response_context_block, build_response_instructions, build_response_messages
 
 
 class ClaudeProvider(BaseLLMProvider):
@@ -27,14 +26,16 @@ class ClaudeProvider(BaseLLMProvider):
         self.client = client or Anthropic(api_key=self.settings.anthropic_api_key)
 
     def generate_response(self, request: LLMRequest) -> LLMResponse:
+        context_block = build_response_context_block(request)
+        system = build_response_instructions()
+        if context_block:
+            system = f"{system}\n\n{context_block}"
         try:
             response = self.client.messages.create(
                 model=self.model_name,
                 max_tokens=self.max_tokens,
-                system=self._build_instructions(),
-                messages=[
-                    {"role": "user", "content": self._build_context_prompt(request)}
-                ],
+                system=system,
+                messages=build_response_messages(request),
             )
         except APIError as exc:
             raise LLMProviderInvocationError(
@@ -62,37 +63,6 @@ class ClaudeProvider(BaseLLMProvider):
                 },
             },
             next_state=None,
-        )
-
-    def _build_instructions(self) -> str:
-        return (
-            "Você é um assistente comercial inicial para empresas de energia solar. "
-            "Responda sempre em português do Brasil, com tom profissional, claro, consultivo e objetivo. "
-            "Colete dados faltantes do lead quando necessário. "
-            "Não prometa economia exata. "
-            "Não prometa quantidade exata de placas, mas quando houver uma pré-análise "
-            "geoespacial/solar no contexto, você pode citar a faixa estimada de placas e a "
-            "potência (kWp), sempre deixando claro que é uma estimativa preliminar. "
-            "Deixe claro que qualquer análise é preliminar e não substitui vistoria técnica. "
-            "Quando necessário, sugira encaminhamento para análise humana ou técnica."
-        )
-
-    def _build_context_prompt(self, request: LLMRequest) -> str:
-        lead_data = json.dumps(request.lead_data or {}, ensure_ascii=False, default=str)
-        extracted_data = json.dumps(request.extracted_data or {}, ensure_ascii=False, default=str)
-        geospatial = geospatial_prompt_section(request.geospatial)
-
-        return (
-            "Contexto atual da conversa:\n"
-            f"- Estado atual: {request.current_state or 'não informado'}\n"
-            f"- Lead score: {request.lead_score if request.lead_score is not None else 'não informado'}\n"
-            f"- Lead temperature: {request.lead_temperature or 'não informado'}\n"
-            f"- Dados consolidados do lead: {lead_data}\n"
-            f"- Dados extraídos da mensagem atual: {extracted_data}\n"
-            f"{geospatial}\n"
-            "Mensagem do usuário:\n"
-            f"{request.user_message}\n\n"
-            "Responda ao usuário considerando esse contexto."
         )
 
     def _extract_output_text(self, response: Any) -> str:

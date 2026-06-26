@@ -40,3 +40,27 @@ def test_event_payload_omits_phone_and_address_when_absent():
 
     assert "phone" not in payload
     assert "address" not in payload
+
+
+def test_regex_extractor_accepts_and_ignores_context_kwargs():
+    service = LeadExtractionService()
+    result = service.extract(
+        "me chamo Ana",
+        history=[{"role": "assistant", "content": "Qual seu nome?"}],
+        known_lead={"city": "Natal"},
+    )
+    assert result.name == "Ana"
+
+
+def test_has_relevant_data_true_when_only_email_present():
+    result = LeadExtractionResult(email="contato.eduardofmaia@gmail.com")
+    assert result.has_relevant_data() is True
+
+
+def test_event_payload_includes_email_when_present():
+    payload = LeadExtractionResult(email="contato.eduardofmaia@gmail.com").to_event_payload()
+    assert payload["email"] == "contato.eduardofmaia@gmail.com"
+
+
+def test_event_payload_omits_email_when_absent():
+    assert "email" not in LeadExtractionResult().to_event_payload()

@@ -31,6 +31,10 @@ class Settings(BaseSettings):
     claude_input_price_per_1m_tokens: Decimal = Decimal("5.00")
     claude_output_price_per_1m_tokens: Decimal = Decimal("25.00")
 
+    lead_extraction_provider: str = "auto"
+    lead_extraction_model: str | None = None
+    lead_extraction_max_tokens: int = 1024
+
     geocoding_provider: str = "mock"
     nominatim_base_url: str = "https://nominatim.openstreetmap.org/search"
     nominatim_user_agent: str = "solar-ai-support-agent"

@@ -93,6 +93,22 @@ def test_generate_response_maps_content_usage_and_cost():
     assert isinstance(client.messages.captured_kwargs["system"], str)
 
 
+def test_claude_uses_history_messages_and_hardened_prompt():
+    message = _FakeMessage([_FakeTextBlock("ok")], _FakeUsage(10, 5), "claude-haiku-4-5")
+    client = _FakeClient(message)
+    provider = ClaudeProvider(settings=_settings(), client=client)
+    req = _request()
+    req.history = [
+        {"role": "assistant", "content": "Qual seu nome?"},
+        {"role": "user", "content": "Eduardo Freire Maia"},
+    ]
+    provider.generate_response(req)
+    kwargs = client.messages.captured_kwargs
+    assert kwargs["messages"][0]["content"] == "Qual seu nome?"
+    assert kwargs["messages"][-1]["content"] == "Eduardo Freire Maia"
+    assert "[Seu Nome]" in kwargs["system"]
+
+
 def test_event_type_and_source_follow_base_contract():
     provider = ClaudeProvider(settings=_settings(), client=_FakeClient(_FakeMessage([], _FakeUsage(0, 0), "claude-opus-4-8")))
 

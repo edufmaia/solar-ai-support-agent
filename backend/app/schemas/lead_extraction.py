@@ -10,6 +10,7 @@ LeadIntent = Literal["solar_quote", "solar_interest", "general_question"]
 
 class LeadExtractionResult(BaseModel):
     name: str | None = None
+    email: str | None = None
     city: str | None = None
     average_energy_bill: Decimal | None = None
     property_type: PropertyType | None = None
@@ -25,6 +26,7 @@ class LeadExtractionResult(BaseModel):
             [
                 self.has_solar_interest,
                 self.name is not None,
+                self.email is not None,
                 self.city is not None,
                 self.average_energy_bill is not None,
                 self.property_type is not None,
@@ -43,6 +45,8 @@ class LeadExtractionResult(BaseModel):
 
         if self.name is not None:
             payload["name"] = self.name
+        if self.email is not None:
+            payload["email"] = self.email
         if self.city is not None:
             payload["city"] = self.city
         if self.average_energy_bill is not None:

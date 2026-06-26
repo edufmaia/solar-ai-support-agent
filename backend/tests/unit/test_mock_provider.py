@@ -71,6 +71,19 @@ def test_geospatial_without_contact_reports_panels_and_collects_contact():
     assert "encaminhei" not in response.content.lower()
 
 
+def test_post_analysis_with_known_name_asks_only_for_phone():
+    # don't re-ask a name we already have; request only the missing phone.
+    response = MockLLMProvider().generate_response(
+        _request(
+            lead_data={"address": "Rua das Flores, 123", "name": "Eduardo Freire Maia"},
+            geospatial=_geospatial_with_solar(),
+        )
+    )
+    assert response.next_state == "awaiting_contact"
+    assert "telefone" in response.content.lower() or "whatsapp" in response.content.lower()
+    assert "nome e telefone" not in response.content.lower()
+
+
 def test_warm_lead_with_geospatial_reports_analysis_instead_of_looping():
     # regression for the reported bug: a warm lead that already ran the analysis
     # must report it, not keep asking for data.

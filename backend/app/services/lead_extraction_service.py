@@ -96,7 +96,13 @@ class LeadExtractionService(LeadExtractor):
         re.IGNORECASE,
     )
 
-    def extract(self, message: str) -> LeadExtractionResult:
+    def extract(
+        self,
+        message: str,
+        *,
+        history: list[dict] | None = None,
+        known_lead: dict | None = None,
+    ) -> LeadExtractionResult:
         normalized_message = self._normalize_text(message)
 
         name = self._extract_name(message)

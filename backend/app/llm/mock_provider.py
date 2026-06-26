@@ -30,7 +30,8 @@ class MockLLMProvider(BaseLLMProvider):
             # The analysis already ran — report it regardless of temperature.
             # Only promise a specialist follow-up once we have a way to reach the
             # lead; otherwise collect the contact first.
-            content, next_state = self._post_analysis_message(request.geospatial or {}, phone)
+            name = lead_data.get("name") or extracted_data.get("name")
+            content, next_state = self._post_analysis_message(request.geospatial or {}, phone, name)
         elif request.lead_temperature == "hot":
             # A hot lead progresses through states instead of repeating one line:
             # ask for the address -> ask for consent -> (analysis handled above).
@@ -120,9 +121,12 @@ class MockLLMProvider(BaseLLMProvider):
             next_state=next_state,
         )
 
-    def _post_analysis_message(self, geospatial: dict, phone: str | None) -> tuple[str, str]:
+    def _post_analysis_message(
+        self, geospatial: dict, phone: str | None, name: str | None = None
+    ) -> tuple[str, str]:
         """Report the completed analysis, then either confirm the specialist
-        follow-up (if we have a contact) or collect the contact first."""
+        follow-up (if we have a contact) or collect the contact first. Only the
+        still-missing contact fields are requested (don't re-ask a known name)."""
         estimate = self._geospatial_estimate(geospatial)
         if phone:
             content = (
@@ -130,9 +134,12 @@ class MockLLMProvider(BaseLLMProvider):
                 f"contatar no {phone} com a proposta detalhada."
             )
             return content, "handed_off_to_specialist"
+        if name:
+            ask = "qual é o seu telefone (ou WhatsApp)?"
+        else:
+            ask = "qual é o seu nome e telefone (ou WhatsApp)?"
         content = (
-            f"{estimate} Para um especialista preparar sua proposta e te retornar, "
-            "qual é o seu nome e telefone (ou WhatsApp)?"
+            f"{estimate} Para um especialista preparar sua proposta e te retornar, {ask}"
         )
         return content, "awaiting_contact"
 
