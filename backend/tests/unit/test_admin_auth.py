@@ -63,3 +63,15 @@ def test_metrics_requires_admin():
 def test_conversation_detail_requires_admin():
     res = client.get(f"/conversations/{uuid4()}")
     assert res.status_code == 401
+
+
+def test_admin_metrics_requires_token():
+    assert client.get("/admin/metrics").status_code == 401
+
+
+def test_admin_conversations_requires_token():
+    assert client.get("/admin/conversations").status_code == 401
+
+
+def test_admin_conversation_detail_requires_token():
+    assert client.get(f"/admin/conversations/{uuid4()}").status_code == 401

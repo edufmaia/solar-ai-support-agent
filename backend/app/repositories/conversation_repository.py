@@ -4,6 +4,7 @@ from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
+from ..schemas.admin import ConversationListItem
 from ..schemas.conversation import ConversationCreate, ConversationRead
 from ..schemas.metrics import ConversationMetrics
 
@@ -154,6 +155,38 @@ class ConversationRepository:
             total=row["total"],
             assigned_to_human=row["assigned_to_human"],
         )
+
+    def list_with_lead(self, limit: int, offset: int) -> list[ConversationListItem]:
+        query = text(
+            """
+            SELECT
+                c.id                  AS conversation_id,
+                c.started_at          AS started_at,
+                c.channel             AS channel,
+                c.status              AS status,
+                c.assigned_to_human   AS assigned_to_human,
+                l.id                  AS lead_id,
+                l.name                AS lead_name,
+                l.city                AS lead_city,
+                l.average_energy_bill AS average_energy_bill,
+                l.lead_score          AS lead_score,
+                l.lead_temperature    AS lead_temperature
+            FROM conversations c
+            LEFT JOIN leads l ON l.id = c.lead_id
+            ORDER BY c.started_at DESC
+            LIMIT :limit OFFSET :offset
+            """
+        )
+        result = self.session.execute(query, {"limit": limit, "offset": offset})
+        return [
+            ConversationListItem.model_validate(dict(row))
+            for row in result.mappings().all()
+        ]
+
+    def count_all(self) -> int:
+        return self.session.execute(
+            text("SELECT COUNT(*) AS total FROM conversations")
+        ).scalar_one()
 
     def mark_handoff(self, conversation_id: UUID) -> ConversationRead | None:
         query = text(
