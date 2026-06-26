@@ -11,5 +11,14 @@ class LeadExtractor(ABC):
     """
 
     @abstractmethod
-    def extract(self, message: str) -> LeadExtractionResult:
-        """Extract structured lead fields from the message."""
+    def extract(
+        self,
+        message: str,
+        *,
+        history: list[dict] | None = None,
+        known_lead: dict | None = None,
+    ) -> LeadExtractionResult:
+        """Extract structured lead fields from the message.
+
+        ``history`` and ``known_lead`` are optional context that LLM-based
+        implementations may use; deterministic implementations ignore them."""
