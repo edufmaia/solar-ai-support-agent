@@ -22,10 +22,10 @@ class _FakeClient:
     def __init__(self, payload=None, error=None):
         self._payload = payload
         self._error = error
-        self.last_params = None
+        self.last_content = None
 
-    def get(self, url, params=None, headers=None, timeout=None):
-        self.last_params = params
+    def post(self, url, content=None, headers=None, timeout=None):
+        self.last_content = content
         if self._error is not None:
             raise self._error
         return _FakeResp(self._payload)

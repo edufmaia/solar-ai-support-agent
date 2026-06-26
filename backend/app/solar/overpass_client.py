@@ -24,14 +24,20 @@ class OverpassClient:
         )
 
     def buildings_around(self, latitude, longitude) -> list[list[tuple[float, float]]]:
-        params = {"data": self._query(latitude, longitude)}
+        query = self._query(latitude, longitude)
+        # Overpass is queried via POST (raw query body) with a descriptive
+        # User-Agent; the public instance rejects header-less GET requests (406).
+        headers = {"User-Agent": self.settings.app_name}
         try:
             if self.client is not None:
-                response = self.client.get(self.settings.overpass_base_url, params=params)
+                response = self.client.post(
+                    self.settings.overpass_base_url, content=query, headers=headers
+                )
             else:
-                response = httpx.get(
+                response = httpx.post(
                     self.settings.overpass_base_url,
-                    params=params,
+                    content=query,
+                    headers=headers,
                     timeout=self.settings.overpass_timeout_seconds,
                 )
             response.raise_for_status()
