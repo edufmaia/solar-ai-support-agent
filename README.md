@@ -28,10 +28,10 @@ O projeto já possui:
 - extração estruturada de lead e scoring enriquecido por análise geoespacial/solar
 - geocoding (mock/Nominatim) e potencial solar (mock) com handoff por `technical_review`
 - registro de custos do agente: evento `agent_turn_completed` por turno e `MessageRepository.aggregate_usage` (tokens/custo, com breakdown por modelo)
-- endpoint `GET /metrics` com dados agregados (leads, conversas, uso/custo, eventos)
+- métricas agregadas (leads, conversas, uso/custo, eventos) — públicas via `/admin/metrics` apenas com login
 - sessão de conversa efêmera em Redis (cache com TTL; Postgres continua a fonte da verdade) com recuperação por turno e degradação graciosa
 - webhook do Chatwoot (`POST /webhooks/chatwoot`): recebe mensagens `incoming`, processa pelo agente e responde via API do Chatwoot
-- interface web em `/ui` (chat + inspector ao vivo) e endpoint `GET /conversations/{id}` (detalhe consolidado)
+- chat do cliente em `/ui` (white-label) e **painel interno com login** em `/ui/admin/` (dashboard + conversas + detalhe, só-leitura); `/metrics` e `/conversations/{id}` ficam protegidos por auth admin
 
 ## Stack
 
@@ -456,14 +456,21 @@ Resultado esperado: tabelas como:
 | `GET` | `/health` | Liveness — `{"status":"ok"}` |
 | `GET` | `/health/db` | Checa conexão com o PostgreSQL |
 | `POST` | `/chat` | Conversa com o agente (cria/recupera conversa, responde) |
-| `GET` | `/conversations/{id}` | Detalhe consolidado (conversa + lead + análise solar + eventos) |
+| `GET` | `/conversations/{id}` | Detalhe consolidado (conversa + lead + análise solar + eventos) — **exige login admin** |
 | `POST` | `/webhooks/chatwoot` | Recebe mensagens do Chatwoot e responde via API |
-| `GET` | `/metrics` | Métricas agregadas (leads, conversas, uso/custo, eventos) |
+| `GET` | `/metrics` | Métricas agregadas (leads, conversas, uso/custo, eventos) — **exige login admin** |
+| `POST` | `/admin/login` | Login do painel (senha única → token de sessão Bearer) |
+| `POST` | `/admin/logout` | Encerra a sessão admin (revoga o token) |
+| `GET` | `/admin/metrics` | Métricas para o painel (reusa `MetricsService`) — exige login |
+| `GET` | `/admin/conversations` | Lista de conversas com join do lead (`?limit&offset`) — exige login |
+| `GET` | `/admin/conversations/{id}` | Detalhe consolidado para o painel — exige login |
 | `GET` | `/ui/` | Chat do cliente final (white-label, SPA estática) |
-| `GET` | `/ui/inspector/` | Inspector interno (chat + painéis de lead/score/custo/solar/eventos) |
+| `GET` | `/ui/admin/` | Painel interno da equipe (login + dashboard + conversas, só-leitura) |
 | `GET` | `/ui/branding.json` | Configuração de marca do chat (editável) |
 | `GET` | `/ui/widget.js` | Loader do widget embutível (uma linha de `<script>`) |
 | `GET` | `/ui/embed-demo.html` | Página de demo com o widget embutido |
+
+> **Acesso admin:** defina `ADMIN_PASSWORD` no `.env` para habilitar o login (sem ela, `/admin/login` responde 503 e o painel fica inacessível). O token de sessão fica no Redis com TTL `ADMIN_SESSION_TTL_SECONDS` (padrão **3600s / 1h**). `/metrics` e `/conversations/{id}` deixaram de ser públicos; para monitoramento externo use `GET /health`.
 
 Docs interativas (Swagger) em `http://localhost:8010/docs`.
 
@@ -491,17 +498,16 @@ A marca é configurada em **`backend/app/static/branding.json`** — **sem edita
 
 Campos ausentes ou JSON inválido caem em defaults — a UI nunca quebra. Como o `backend` roda uma imagem buildada, rode `docker compose -p solar-ai-support-agent up --build -d backend` após editar (ou monte o arquivo por volume).
 
-### Inspector interno — `http://localhost:8010/ui/inspector/`
+### Painel interno (admin) — `http://localhost:8010/ui/admin/`
 
-A visão de **equipe/demo** (acesso por URL direta, sem link na tela do cliente; o painel admin com login virá no Sub-projeto C). À esquerda você conversa; à direita um **inspector** mostra, ao vivo, o que foi salvo no banco a cada turno:
+A visão de **equipe**, protegida por **login** (acesso por URL direta, sem link na tela do cliente). Substitui o antigo inspector público. Só-leitura nesta versão. Defina `ADMIN_PASSWORD` no `.env`, abra a página e informe a senha — o token de sessão fica no `localStorage` e expira conforme `ADMIN_SESSION_TTL_SECONDS`.
 
-- **Conversa:** estado atual, canal e um banner destacado quando a conversa é **encaminhada para atendimento humano**.
-- **Lead:** nome, cidade, endereço, conta média, intenção e **score + temperatura** (badge hot/warm/cold).
-- **Análise solar:** quando o usuário autoriza e informa o endereço — uma **imagem de satélite do imóvel** (Esri World Imagery, via lat/lon geocodificada), a **faixa de placas estimada**, **kWp**, nível de confiança e a flag **"requer revisão técnica"**.
-- **Custo & uso (LLM):** provider/modelo, tokens e **custo estimado** acumulado da conversa (turnos mock aparecem com custo zero).
-- **Eventos do agente:** a trilha de `agent_events` do turno, destacando handoff/solar/score.
+- **Dashboard:** cards do `/admin/metrics` — leads por temperatura, total de conversas e % com humano, uso/custo de LLM e o evento mais comum.
+- **Conversas:** tabela com nome, cidade, conta média, **score + temperatura** (badge hot/warm/cold), canal, data e flag de atendimento humano. Clicar numa linha abre o **detalhe**.
+- **Detalhe da conversa:** conversa (estado/canal/status/humano), lead, **análise solar** com a **imagem de satélite do imóvel** (Esri World Imagery, via lat/lon geocodificada), faixa de placas/kWp/confiança e a flag "requer revisão técnica", além da trilha de `agent_events` (handoff/solar/score destacados).
+- **Sair:** revoga o token (`/admin/logout`) e volta à tela de login.
 
-Roteiro sugerido para ver tudo preencher: (1) "Olá, sou a Ana de Natal, moro na Rua das Flores 123, minha conta vem R$ 800 e quero energia solar" → lead criado e pontuado; (2) "Autorizo a análise, pode verificar meu endereço" → geocoding + potencial solar + (lead quente) encaminhamento para humano.
+Roteiro para popular dados: pelo chat do cliente (`/ui/`) envie (1) "Olá, sou a Ana de Natal, moro na Rua das Flores 123, minha conta vem R$ 800 e quero energia solar" → lead criado e pontuado; (2) "Autorizo a análise, pode verificar meu endereço" → geocoding + potencial solar + (lead quente) encaminhamento para humano. Depois abra o painel para ver tudo agregado.
 
 ### Widget embutível — uma linha de `<script>`
 
