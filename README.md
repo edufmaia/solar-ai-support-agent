@@ -183,6 +183,24 @@ Observações:
 
 **Modo `hybrid` (economia de tokens):** roteia cada turno entre o mock (grátis) e um provider real (`HYBRID_REAL_PROVIDER`, padrão `openai`). Turnos scriptados — saudação, coleta de cidade/conta/endereço e o resumo da pré-análise solar — são respondidos pelo mock a custo zero; o LLM real só é chamado quando os dados-core estão completos e há texto livre para interpretar. O provider real é construído sob demanda (turnos mock funcionam mesmo sem a chave) e cada turno registra o provider/custo reais, então o painel de custo soma só os turnos pagos.
 
+### Extração de lead via LLM
+
+A cada mensagem o orquestrador extrai os dados do lead (nome, e-mail, telefone, cidade, endereço, conta, tipo de imóvel, intenção, consentimento) com uma chamada estruturada a um modelo **barato**, usando o **histórico completo** da conversa como contexto. É isso que permite capturar respostas em linha solta (ex.: o cliente responde só `Eduardo Freire Maia` ou `contato@exemplo.com` a uma pergunta) e parar de re-perguntar dados já informados.
+
+```env
+LEAD_EXTRACTION_PROVIDER=auto
+LEAD_EXTRACTION_MODEL=
+LEAD_EXTRACTION_MAX_TOKENS=1024
+```
+
+- `LEAD_EXTRACTION_PROVIDER`: `auto` | `openai` | `claude` | `regex`.
+  - `auto` (padrão) segue o provider real da resposta — `HYBRID_REAL_PROVIDER` quando `LLM_PROVIDER=hybrid`, senão o próprio `LLM_PROVIDER`. Se isso resolver para `mock`, a extração por LLM fica desligada (usa o regex).
+  - `openai` | `claude` forçam o provider, **independente** do provider que gera a resposta (dá para extrair com OpenAI e responder com Claude, ou o inverso, para baratear).
+  - `regex` desliga a extração por LLM e usa só o extrator deterministico (útil para testes e operação offline).
+- `LEAD_EXTRACTION_MODEL`: vazio usa o default barato por provider (`gpt-4o-mini` para OpenAI, `claude-haiku-4-5` para Claude); defina para fixar outro modelo.
+- `LEAD_EXTRACTION_MAX_TOKENS`: teto de tokens da chamada de extração (usado pelo provider Claude).
+- **Resiliência:** se a chamada falhar, expirar ou retornar JSON inválido, o sistema cai automaticamente no extrator regex e registra o evento `lead_extraction_llm_failed` — o turno nunca quebra por causa da extração. Reaproveita `OPENAI_API_KEY` / `ANTHROPIC_API_KEY`; sem a chave do provider escolhido, também cai no regex.
+
 ### Sessão em Redis
 
 ```env
@@ -373,6 +391,7 @@ Eventos esperados em modo mock:
 
 - `conversation_started`
 - `user_message_received`
+- `lead_extraction_llm_failed` (apenas em degradação, se a extração via LLM falhar/retornar JSON inválido e cair no extrator regex)
 - `lead_data_extracted`
 - `lead_created` ou `lead_updated`
 - `lead_scored`
@@ -390,6 +409,7 @@ Eventos esperados em modo OpenAI:
 
 - `conversation_started`
 - `user_message_received`
+- `lead_extraction_llm_failed` (apenas em degradação, se a extração via LLM falhar/retornar JSON inválido e cair no extrator regex)
 - `lead_data_extracted`
 - `lead_created` ou `lead_updated`
 - `lead_scored`
@@ -593,7 +613,8 @@ O GitHub Actions (`.github/workflows/ci.yml`) roda a cada push/PR:
 
 - **SQL manual em vez de ORM:** os repositories usam `SQLAlchemy text()` com `commit/rollback` por método; os schemas Pydantic são a única representação tipada (`Model.model_validate(dict(row))`). Mantém o controle do SQL explícito e o projeto enxuto.
 - **`agent_events` como trilha de auditoria:** cada passo relevante emite um evento, e cada turno é resumido em `agent_turn_completed` (tokens/modelo/custo/nº de eventos) — a base do `GET /metrics`.
-- **Provider de LLM plugável:** `BaseLLMProvider` + factory por `LLM_PROVIDER` (`mock`/`openai`/`claude`), com fallback para `mock`; trocar de modelo é trocar uma env var. A pré-análise geoespacial/solar é injetada no prompt (`llm/context.py`), então o LLM cita a **faixa de placas e kWp reais** do pipeline em vez de inventar.
+- **Provider de LLM plugável:** `BaseLLMProvider` + factory por `LLM_PROVIDER` (`mock`/`openai`/`claude`/`hybrid`), com fallback para `mock`; trocar de modelo é trocar uma env var. A pré-análise geoespacial/solar é injetada no prompt (`llm/context.py`), então o LLM cita a **faixa de placas e kWp reais** do pipeline em vez de inventar.
+- **Extração de lead provider-agnóstica:** uma camada própria (`llm/extraction/`, factory por `LEAD_EXTRACTION_PROVIDER`) extrai os campos do lead via LLM barato usando o histórico completo da conversa, com **fallback regex** se a API falhar. O provider de extração é independente do provider de resposta (extrair com OpenAI e responder com Claude, ou o inverso, para baratear).
 - **PostgreSQL como fonte da verdade, Redis como cache:** a sessão da conversa e o mapa Chatwoot→conversa vivem no Redis com TTL; se o Redis cair, o fluxo continua e registra `session_store_unavailable`.
 - **Webhook idempotente:** o `POST /webhooks/chatwoot` sempre responde `200` (mesmo se o envio da resposta falhar), evitando reentregas em loop do Chatwoot; mensagens `outgoing` são ignoradas para não responder a si mesmo.
 - **Pré-análise geoespacial, não vistoria:** geocoding + potencial solar produzem uma estimativa preliminar e disparam handoff por `technical_review` quando necessário.
