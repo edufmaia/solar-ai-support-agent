@@ -4,6 +4,46 @@
 
 Agente de IA para atendimento inicial, qualificação de leads e pré-análise geoespacial para empresas de energia solar.
 
+## Quickstart
+
+Suba tudo com **um comando** (precisa apenas de Docker):
+
+```bash
+git clone https://github.com/edufmaia/solar-ai-support-agent.git
+cd solar-ai-support-agent
+docker compose up -d --build
+```
+
+Pronto — o schema do banco é aplicado automaticamente (service `migrate`) e o
+backend sobe com healthcheck. Acesse:
+
+- **Chat do cliente:** http://localhost:8010/ui/
+- **Painel interno:** http://localhost:8010/ui/admin/ (requer `ADMIN_PASSWORD`, veja abaixo)
+- **API (Swagger):** http://localhost:8010/docs
+
+**Opcional — habilitar painel admin e/ou LLM real:** copie o template de ambiente
+e edite antes de subir (sem isso, a stack roda em modo `mock` e o painel admin fica
+desabilitado):
+
+```bash
+cp .env.example .env
+# defina ADMIN_PASSWORD (habilita /ui/admin/) e, se quiser, as chaves de LLM
+docker compose up -d
+```
+
+> O `docker-compose.yml` já fixa o project name (`solar-ai-support-agent`), então
+> não é preciso passar `-p`. Para parar: `docker compose down` (use `down -v` para
+> apagar os dados do banco).
+
+### Telas
+
+| Chat do cliente | Painel interno | Widget embutido |
+|---|---|---|
+| ![Chat do cliente](docs/images/chat.png) | ![Painel interno](docs/images/admin.png) | ![Widget embutido](docs/images/widget.png) |
+
+> As imagens acima são geradas localmente — veja [`docs/images/README.md`](docs/images/README.md)
+> para o que capturar e como.
+
 ## Status atual
 
 O projeto já possui:
