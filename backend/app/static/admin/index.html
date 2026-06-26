@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-role="admin-panel">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Painel interno</title>
+  <link rel="stylesheet" href="../css/theme.css" />
+  <link rel="stylesheet" href="../css/admin.css" />
+</head>
+<body>
+  <!-- Login view -->
+  <section id="login-view" class="login-wrap">
+    <form id="login-form" class="login-card">
+      <span class="brand-logo" aria-hidden="true">☀️</span>
+      <h1 id="login-title">Painel interno</h1>
+      <p class="muted">Acesso restrito à equipe.</p>
+      <input id="password" type="password" autocomplete="current-password"
+             placeholder="Senha de acesso" aria-label="Senha" />
+      <button type="submit">Entrar</button>
+      <p id="login-error" class="login-error hidden"></p>
+    </form>
+  </section>
+
+  <!-- Panel shell -->
+  <section id="panel-view" class="panel hidden">
+    <header class="panel-header">
+      <span class="brand-logo" aria-hidden="true">☀️</span>
+      <strong id="brand-name">Solar AI</strong>
+      <nav class="tabs">
+        <button id="tab-dashboard" class="tab active" type="button">Dashboard</button>
+        <button id="tab-conversations" class="tab" type="button">Conversas</button>
+      </nav>
+      <button id="logout-btn" class="btn-ghost" type="button">Sair</button>
+    </header>
+
+    <main class="panel-body">
+      <div id="dashboard-pane">
+        <div id="metrics-cards" class="cards"></div>
+      </div>
+
+      <div id="conversations-pane" class="hidden">
+        <table class="conv-table">
+          <thead>
+            <tr>
+              <th>Nome</th><th>Cidade</th><th>Conta</th><th>Score</th>
+              <th>Canal</th><th>Início</th><th>Humano</th>
+            </tr>
+          </thead>
+          <tbody id="conv-rows"></tbody>
+        </table>
+        <p id="conv-empty" class="muted hidden">Nenhuma conversa ainda.</p>
+      </div>
+
+      <div id="detail-pane" class="hidden">
+        <button id="detail-back" class="btn-ghost" type="button">← Voltar</button>
+        <div id="detail-content"></div>
+      </div>
+    </main>
+  </section>
+
+  <script type="module" src="../js/admin.js"></script>
+</body>
+</html>
