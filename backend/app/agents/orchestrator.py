@@ -27,6 +27,7 @@ from ..schemas.llm import LLMRequest
 from ..schemas.message import MessageCreate
 from ..services.lead_extraction_service import LeadExtractionService
 from ..services.lead_extractor import LeadExtractor
+from ..services.llm_lead_extractor import build_lead_extractor
 from ..services.lead_scoring_service import LeadScoringService
 from ..session import RedisSessionStore, SessionStoreError, build_session_store
 from ..schemas.session import SessionState
@@ -56,7 +57,7 @@ class MockAgentOrchestrator:
         self.conversation_repository = ConversationRepository(session)
         self.lead_repository = LeadRepository(session)
         self.message_repository = MessageRepository(session)
-        self.lead_extraction_service = lead_extractor or LeadExtractionService()
+        self.lead_extraction_service = lead_extractor or build_lead_extractor()
         self.lead_scoring_service = LeadScoringService()
         self.llm_provider = llm_provider or build_llm_provider()
         self.save_lead_tool = SaveLeadTool(self.lead_repository)
@@ -111,7 +112,19 @@ class MockAgentOrchestrator:
             )
         )
 
-        extraction = self.lead_extraction_service.extract(payload.message)
+        history = [
+            {"role": m.role, "content": m.content}
+            for m in self.message_repository.list_by_conversation_id(conversation.id)
+        ]
+        known_lead = None
+        if conversation.lead_id is not None:
+            existing_lead = self.lead_repository.get_by_id(conversation.lead_id)
+            if existing_lead is not None:
+                known_lead = existing_lead.model_dump(mode="json")
+        extraction = self.lead_extraction_service.extract(
+            payload.message, history=history, known_lead=known_lead
+        )
+        self._maybe_emit_extraction_fallback(conversation)
         conversation = self._persist_extracted_lead_data(conversation, payload, extraction)
         lead = self.lead_repository.get_by_id(conversation.lead_id) if conversation.lead_id is not None else None
         scoring = self._score_lead(conversation, extraction, lead)
@@ -142,6 +155,7 @@ class MockAgentOrchestrator:
             lead=lead,
             scoring=scoring,
             geospatial=geospatial,
+            history=history,
         )
         llm_response = self.llm_provider.generate_response(llm_request)
 
@@ -227,6 +241,21 @@ class MockAgentOrchestrator:
         result = self.agent_event_repository.create(event)
         self._turn_event_count += 1
         return result
+
+    def _maybe_emit_extraction_fallback(self, conversation: ConversationRead) -> None:
+        """Record an event when LLM extraction failed and the regex fallback ran."""
+        reason = getattr(self.lead_extraction_service, "last_fallback_reason", None)
+        if not reason:
+            return
+        self._record_event(
+            AgentEventCreate(
+                conversation_id=conversation.id,
+                lead_id=conversation.lead_id,
+                event_type="lead_extraction_llm_failed",
+                event_source=self.EVENT_SOURCE,
+                payload={"reason": reason},
+            )
+        )
 
     def _recover_session(self, conversation: ConversationRead) -> SessionState | None:
         """Recover the ephemeral session snapshot from Redis (best-effort)."""
@@ -354,7 +383,7 @@ class MockAgentOrchestrator:
         lead_payload = LeadCreate(
             name=extraction.name,
             phone=extraction.phone,
-            email=None,
+            email=extraction.email,
             city=extraction.city,
             state=None,
             address=extraction.address,
@@ -698,6 +727,7 @@ class MockAgentOrchestrator:
         lead: LeadRead | None,
         scoring: LeadScoringResult | None,
         geospatial: dict | None = None,
+        history: list[dict] | None = None,
     ) -> LLMRequest:
         return LLMRequest(
             conversation_id=conversation.id,
@@ -708,4 +738,5 @@ class MockAgentOrchestrator:
             lead_temperature=scoring.lead_temperature if scoring is not None else None,
             extracted_data=extraction.to_event_payload(),
             geospatial=geospatial,
+            history=history,
         )
