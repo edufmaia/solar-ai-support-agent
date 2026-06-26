@@ -1,3 +1,5 @@
+from uuid import uuid4
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -51,3 +53,13 @@ def test_login_then_logout_succeeds(admin_password):
     # token no longer valid
     again = client.post("/admin/logout", headers={"Authorization": f"Bearer {token}"})
     assert again.status_code == 401
+
+
+def test_metrics_requires_admin():
+    res = client.get("/metrics")
+    assert res.status_code == 401
+
+
+def test_conversation_detail_requires_admin():
+    res = client.get(f"/conversations/{uuid4()}")
+    assert res.status_code == 401
