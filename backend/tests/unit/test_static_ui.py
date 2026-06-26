@@ -42,12 +42,15 @@ def test_customer_chat_served():
     assert 'id="chat-card"' in body
 
 
-def test_inspector_served():
-    res = client.get("/ui/inspector/")
+def test_admin_panel_served():
+    res = client.get("/ui/admin/")
     assert res.status_code == 200
-    body = res.text
-    assert 'data-role="inspector"' in body
-    assert 'id="lead-info"' in body
+    assert 'data-role="admin-panel"' in res.text
+
+
+def test_inspector_removed():
+    res = client.get("/ui/inspector/")
+    assert res.status_code == 404
 
 
 def test_chat_embed_param_ok():

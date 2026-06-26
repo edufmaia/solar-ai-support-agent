@@ -4,6 +4,7 @@ from fastapi import FastAPI
 from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
+from .api.admin import router as admin_router
 from .api.chat import router as chat_router
 from .api.chatwoot import router as chatwoot_router
 from .api.conversations import router as conversations_router
@@ -25,6 +26,7 @@ def create_app() -> FastAPI:
     app.include_router(conversations_router)
     app.include_router(health_router)
     app.include_router(metrics_router)
+    app.include_router(admin_router)
 
     if STATIC_DIR.is_dir():
         app.mount("/ui", StaticFiles(directory=str(STATIC_DIR), html=True), name="ui")

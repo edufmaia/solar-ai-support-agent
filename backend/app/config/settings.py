@@ -48,6 +48,9 @@ class Settings(BaseSettings):
     chatwoot_timeout_seconds: float = 5.0
     chatwoot_conversation_ttl_seconds: int = 604800
 
+    admin_password: str | None = None
+    admin_session_ttl_seconds: int = 3600
+
     def get_database_url(self) -> str:
         if self.database_url:
             return self.database_url

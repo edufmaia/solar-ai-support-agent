@@ -5,12 +5,17 @@ from sqlalchemy.orm import Session
 
 from ..config.database import get_db_session
 from ..schemas.conversation_detail import ConversationDetail
+from ..security.admin_auth import require_admin
 from ..services.conversation_detail_service import ConversationDetailService
 
 router = APIRouter(tags=["conversations"])
 
 
-@router.get("/conversations/{conversation_id}", response_model=ConversationDetail)
+@router.get(
+    "/conversations/{conversation_id}",
+    response_model=ConversationDetail,
+    dependencies=[Depends(require_admin)],
+)
 def get_conversation(
     conversation_id: UUID,
     session: Session = Depends(get_db_session),
