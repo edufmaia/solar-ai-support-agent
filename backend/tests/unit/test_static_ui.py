@@ -45,6 +45,13 @@ def test_admin_panel_served():
     assert 'data-role="admin-panel"' in res.text
 
 
+def test_admin_panel_has_instructions_and_knowledge_tabs():
+    res = client.get("/ui/admin/")
+    assert res.status_code == 200
+    assert "Instruções" in res.text
+    assert "Conhecimento" in res.text
+
+
 def test_inspector_removed():
     res = client.get("/ui/inspector/")
     assert res.status_code == 404

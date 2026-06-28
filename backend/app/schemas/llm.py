@@ -15,6 +15,8 @@ class LLMRequest(BaseModel):
     extracted_data: dict[str, Any] = Field(default_factory=dict)
     geospatial: dict[str, Any] | None = None
     history: list[dict[str, str]] | None = None
+    system_prompt: str | None = None
+    knowledge: list[dict[str, Any]] = Field(default_factory=list)
 
 
 class LLMResponse(BaseModel):

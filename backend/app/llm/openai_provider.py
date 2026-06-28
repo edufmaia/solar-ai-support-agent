@@ -31,7 +31,7 @@ class OpenAIProvider(BaseLLMProvider):
 
     def generate_response(self, request: LLMRequest) -> LLMResponse:
         context_block = build_response_context_block(request)
-        instructions = build_response_instructions()
+        instructions = build_response_instructions(request.system_prompt)
         if context_block:
             instructions = f"{instructions}\n\n{context_block}"
         try:

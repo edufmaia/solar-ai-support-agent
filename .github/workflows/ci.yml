@@ -123,3 +123,4 @@ jobs:
           python tests/session_test.py
           python tests/chatwoot_test.py
           python tests/conversation_detail_test.py
+          python tests/knowledge_smoke_test.py

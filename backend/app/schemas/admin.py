@@ -34,3 +34,9 @@ class ConversationListResponse(BaseModel):
     total: int
     limit: int
     offset: int
+
+
+class AgentSettingsResponse(BaseModel):
+    system_prompt: str
+    is_custom: bool
+    knowledge_enabled: bool
