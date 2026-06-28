@@ -28,3 +28,12 @@ extend-immutable-calls = [
 [tool.ruff.lint.per-file-ignores]
 # Tests may use assert-style and longer expressions freely
 "tests/**" = ["B011"]
+
+[tool.coverage.run]
+branch = true
+source = ["app"]
+omit = ["app/main.py"]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = true
