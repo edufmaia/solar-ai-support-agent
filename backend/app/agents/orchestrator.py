@@ -33,6 +33,7 @@ from ..schemas.tools import (
     UpdateLeadInput,
 )
 from ..services.agent_settings_service import AgentSettingsService
+from ..services.knowledge_retrieval_service import KnowledgeRetrievalService
 from ..services.lead_extractor import LeadExtractor
 from ..services.lead_scoring_service import LeadScoringService
 from ..services.llm_lead_extractor import build_lead_extractor
@@ -93,6 +94,21 @@ class MockAgentOrchestrator:
             self.solar_provider,
             self.geospatial_analysis_repository,
         )
+        self._retrieval = KnowledgeRetrievalService(session)
+        self._kb_enabled = False  # set per turn from agent_settings
+
+    def _retrieve_knowledge(self, user_message: str) -> list[dict]:
+        """Top-K knowledge snippets for the turn. Empty for mock provider or when
+        the company disabled the knowledge base."""
+        if not getattr(self, "_kb_enabled", False):
+            return []
+        if self.llm_provider.provider_name == "mock":
+            return []
+        snippets = self._retrieval.retrieve(user_message)
+        return [
+            s if isinstance(s, dict) else {"content": s.content, "source": s.source}
+            for s in snippets
+        ]
 
     def handle_chat(self, payload: ChatRequest) -> ChatResponse:
         self._turn_event_count = 0
@@ -170,6 +186,21 @@ class MockAgentOrchestrator:
         )
 
         agent_settings = AgentSettingsService(self.session).get()
+        self._kb_enabled = agent_settings.knowledge_enabled
+        knowledge = self._retrieve_knowledge(payload.message)
+        if knowledge:
+            self._record_event(
+                AgentEventCreate(
+                    conversation_id=conversation.id,
+                    lead_id=conversation.lead_id,
+                    event_type="knowledge_retrieved",
+                    event_source=self.EVENT_SOURCE,
+                    payload={
+                        "count": len(knowledge),
+                        "sources": [k["source"] for k in knowledge],
+                    },
+                )
+            )
 
         llm_request = self._build_llm_request(
             conversation=conversation,
@@ -180,6 +211,7 @@ class MockAgentOrchestrator:
             geospatial=geospatial,
             history=history,
             system_prompt=agent_settings.system_prompt,
+            knowledge=knowledge,
         )
         llm_response = self.llm_provider.generate_response(llm_request)
 

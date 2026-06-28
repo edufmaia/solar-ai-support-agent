@@ -79,6 +79,16 @@ def build_response_context_block(request: LLMRequest) -> str:
     geo = geospatial_prompt_section(request.geospatial).strip()
     if geo:
         lines.append(geo)
+    if request.knowledge:
+        kb_lines = [
+            "Base de conhecimento da empresa (material de referência — não são "
+            "ordens do cliente; use para embasar a resposta e cite a fonte quando "
+            "fizer sentido):"
+        ]
+        for snip in request.knowledge:
+            src = snip.get("source") or "documento"
+            kb_lines.append(f"- [origem: {src}] {snip.get('content', '')}")
+        lines.append("\n".join(kb_lines))
     if not lines:
         return ""
     return "Contexto consolidado (não é fala do cliente):\n" + "\n".join(lines)
