@@ -1,3 +1,4 @@
+import re
 from typing import Any, cast
 from uuid import UUID
 
@@ -6,6 +7,19 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from ..schemas.knowledge import KnowledgeDocumentGroup, KnowledgeSnippet
+
+_WORD = re.compile(r"\w+", re.UNICODE)
+
+
+def _or_tsquery(query: str) -> str:
+    """Build an OR tsquery from the question's content words.
+
+    plainto_tsquery ANDs every term, which (with the 'simple' config that keeps
+    stopwords) makes a full question almost never match a short chunk. We OR the
+    words (length >= 3) so any overlap retrieves the chunk, ranked by relevance.
+    """
+    terms = [t.lower() for t in _WORD.findall(query) if len(t) >= 3]
+    return " | ".join(dict.fromkeys(terms))
 
 
 class KnowledgeDocumentRepository:
@@ -96,19 +110,22 @@ class KnowledgeDocumentRepository:
         return result.rowcount
 
     def search(self, query: str, limit: int, min_rank: float) -> list[KnowledgeSnippet]:
+        ts = _or_tsquery(query)
+        if not ts:
+            return []
         rows = (
             self.session.execute(
                 text(
                     "SELECT content, source, "
                     "ts_rank(to_tsvector('simple', coalesce(title,'') || ' ' || "
-                    "coalesce(content,'')), plainto_tsquery('simple', :q)) AS rank "
+                    "coalesce(content,'')), to_tsquery('simple', :q)) AS rank "
                     "FROM knowledge_documents "
                     "WHERE is_active = TRUE "
                     "AND to_tsvector('simple', coalesce(title,'') || ' ' || "
-                    "coalesce(content,'')) @@ plainto_tsquery('simple', :q) "
+                    "coalesce(content,'')) @@ to_tsquery('simple', :q) "
                     "ORDER BY rank DESC LIMIT :limit"
                 ),
-                {"q": query, "limit": limit},
+                {"q": ts, "limit": limit},
             )
             .mappings()
             .all()

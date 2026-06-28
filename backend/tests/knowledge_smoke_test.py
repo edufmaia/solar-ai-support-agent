@@ -37,6 +37,16 @@ def main() -> None:
         hits = kb.search("garantia dos painéis", limit=4, min_rank=0.0)
         assert any("garantia" in h.content.lower() for h in hits), "FTS should find the chunk"
 
+        # Realistic question (extra words not in the doc) must still match via OR query.
+        q_hits = kb.search(
+            "qual a garantia dos painéis e em quantas vezes posso parcelar?",
+            limit=4,
+            min_rank=0.0,
+        )
+        assert any("garantia" in h.content.lower() for h in q_hits), (
+            "question-style query should still retrieve the chunk (OR semantics)"
+        )
+
         kb.set_active(gid, False)
         assert kb.search("garantia dos painéis", limit=4, min_rank=0.0) == []
         kb.set_active(gid, True)
