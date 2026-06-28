@@ -3,22 +3,22 @@ from uuid import UUID
 from sqlalchemy.orm import Session
 
 from ..repositories import (
-    AgentEventRepository,
     ConversationRepository,
     GeospatialAnalysisRepository,
     LeadRepository,
+    MessageRepository,
 )
 from ..schemas.conversation_detail import ConversationDetail
 
 
 class ConversationDetailService:
-    """Read-only consolidated view of a conversation for the UI inspector."""
+    """Read-only consolidated view of a conversation for the admin panel."""
 
     def __init__(self, session: Session) -> None:
         self.conversation_repository = ConversationRepository(session)
         self.lead_repository = LeadRepository(session)
         self.geospatial_analysis_repository = GeospatialAnalysisRepository(session)
-        self.agent_event_repository = AgentEventRepository(session)
+        self.message_repository = MessageRepository(session)
 
     def build(self, conversation_id: UUID) -> ConversationDetail | None:
         conversation = self.conversation_repository.get_by_id(conversation_id)
@@ -33,11 +33,11 @@ class ConversationDetailService:
                 conversation.lead_id
             )
 
-        events = self.agent_event_repository.list_by_conversation_id(conversation_id)
+        messages = self.message_repository.list_by_conversation_id(conversation_id)
 
         return ConversationDetail(
             conversation=conversation,
             lead=lead,
             geospatial=geospatial,
-            events=events,
+            messages=messages,
         )

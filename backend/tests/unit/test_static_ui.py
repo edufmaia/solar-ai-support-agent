@@ -52,6 +52,12 @@ def test_admin_panel_has_instructions_and_knowledge_tabs():
     assert "Conhecimento" in res.text
 
 
+def test_admin_panel_has_lightbox():
+    res = client.get("/ui/admin/")
+    assert res.status_code == 200
+    assert 'id="lightbox"' in res.text
+
+
 def test_inspector_removed():
     res = client.get("/ui/inspector/")
     assert res.status_code == 404

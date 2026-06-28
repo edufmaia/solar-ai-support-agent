@@ -2,10 +2,10 @@ from datetime import UTC, datetime
 from decimal import Decimal
 from uuid import uuid4
 
-from app.schemas.agent_event import AgentEventRead
 from app.schemas.conversation import ConversationRead
 from app.schemas.geospatial import GeospatialAnalysisRead
 from app.schemas.lead import LeadRead
+from app.schemas.message import MessageRead
 from app.services.conversation_detail_service import ConversationDetailService
 
 
@@ -39,20 +39,20 @@ class _GeoRepo:
         return self._geo
 
 
-class _EventRepo:
-    def __init__(self, events):
-        self._events = events
+class _MessageRepo:
+    def __init__(self, messages):
+        self._messages = messages
 
     def list_by_conversation_id(self, _id):
-        return self._events
+        return self._messages
 
 
-def _service(conv, lead=None, geo=None, events=None):
+def _service(conv, lead=None, geo=None, messages=None):
     svc = ConversationDetailService(None)
     svc.conversation_repository = _ConvRepo(conv)
     svc.lead_repository = _LeadRepo(lead)
     svc.geospatial_analysis_repository = _GeoRepo(geo)
-    svc.agent_event_repository = _EventRepo(events or [])
+    svc.message_repository = _MessageRepo(messages or [])
     return svc
 
 
@@ -97,16 +97,15 @@ def test_builds_full_detail():
         requires_technical_review=False,
         created_at=_now(),
     )
-    event = AgentEventRead(
+    message = MessageRead(
         id=uuid4(),
         conversation_id=conv.id,
-        event_type="human_handoff_requested",
-        event_source="mock_agent_orchestrator",
-        payload={"reason": "hot_lead"},
+        role="user",
+        content="Quero energia solar",
         created_at=_now(),
     )
 
-    detail = _service(conv, lead=lead, geo=geo, events=[event]).build(conv.id)
+    detail = _service(conv, lead=lead, geo=geo, messages=[message]).build(conv.id)
 
     assert detail is not None
     assert detail.conversation.assigned_to_human is True
@@ -114,7 +113,8 @@ def test_builds_full_detail():
     assert detail.lead.lead_temperature == "hot"
     assert detail.geospatial.solar_data_available is True
     assert detail.geospatial.estimated_panel_min == 6
-    assert detail.events[0].event_type == "human_handoff_requested"
+    assert detail.messages[0].content == "Quero energia solar"
+    assert detail.messages[0].role == "user"
 
 
 def test_no_lead_skips_lead_and_geo():
