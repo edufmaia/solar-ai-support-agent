@@ -37,9 +37,9 @@ jobs:
           cache-dependency-path: backend/requirements.txt
       - name: Install dependencies
         run: pip install -r backend/requirements-dev.txt
-      - name: Run unit tests
+      - name: Run unit tests with coverage
         working-directory: backend
-        run: python -m pytest tests/unit -q
+        run: python -m pytest tests/unit -q --cov=app --cov-report=term-missing --cov-fail-under=75
 
   integration:
     name: Integration (Postgres + Redis)
