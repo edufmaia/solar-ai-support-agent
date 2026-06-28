@@ -607,7 +607,7 @@ A visão de **equipe**, protegida por **login** (acesso por URL direta, sem link
 
 - **Dashboard:** cards do `/admin/metrics` — leads por temperatura, total de conversas e % com humano, uso/custo de LLM e o evento mais comum.
 - **Conversas:** tabela com nome, cidade, conta média, **score + temperatura** (badge hot/warm/cold), canal, data e flag de atendimento humano. Clicar numa linha abre o **detalhe**.
-- **Detalhe da conversa:** conversa (estado/canal/status/humano), lead, **análise solar** com a **imagem de satélite do imóvel** (Esri World Imagery, via lat/lon geocodificada), faixa de placas/kWp/confiança e a flag "requer revisão técnica", além da trilha de `agent_events` (handoff/solar/score destacados).
+- **Detalhe da conversa:** conversa (estado/canal/status/humano), **dados do lead** coletados, **análise solar** com a **imagem de satélite do imóvel** (Esri World Imagery, via lat/lon geocodificada — **clique para ampliar**), faixa de placas/kWp/confiança e a flag "requer revisão técnica", e a **transcrição completa** do atendimento (cliente × IA).
 - **Sair:** revoga o token (`/admin/logout`) e volta à tela de login.
 
 Roteiro para popular dados: pelo chat do cliente (`/ui/`) envie (1) "Olá, sou a Ana de Natal, moro na Rua das Flores 123, minha conta vem R$ 800 e quero energia solar" → lead criado e pontuado; (2) "Autorizo a análise, pode verificar meu endereço" → geocoding + potencial solar + (lead quente) encaminhamento para humano. Depois abra o painel para ver tudo agregado.
