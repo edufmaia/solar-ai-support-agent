@@ -17,6 +17,31 @@ def admin_password(monkeypatch):
     get_settings.cache_clear()
 
 
+class _FakeRedis:
+    """In-memory stand-in so login/logout tests don't need a live Redis."""
+
+    def __init__(self):
+        self._store = {}
+
+    def set(self, key, value, ex=None):
+        self._store[key] = value
+        return True
+
+    def exists(self, key):
+        return 1 if key in self._store else 0
+
+    def delete(self, key):
+        self._store.pop(key, None)
+        return 1
+
+
+@pytest.fixture
+def fake_redis(monkeypatch):
+    fake = _FakeRedis()
+    monkeypatch.setattr("app.security.admin_auth.get_redis_client", lambda: fake)
+    return fake
+
+
 def _login(password):
     return client.post("/admin/login", json={"password": password})
 
@@ -33,7 +58,7 @@ def test_login_wrong_password(admin_password):
     assert res.status_code == 401
 
 
-def test_login_ok_returns_token(admin_password):
+def test_login_ok_returns_token(admin_password, fake_redis):
     res = _login("s3cret")
     assert res.status_code == 200
     token = res.json()["token"]
@@ -45,7 +70,7 @@ def test_logout_requires_token():
     assert res.status_code == 401
 
 
-def test_login_then_logout_succeeds(admin_password):
+def test_login_then_logout_succeeds(admin_password, fake_redis):
     token = _login("s3cret").json()["token"]
     res = client.post("/admin/logout", headers={"Authorization": f"Bearer {token}"})
     assert res.status_code == 204
