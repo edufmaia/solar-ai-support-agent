@@ -32,6 +32,7 @@ from ..schemas.tools import (
     SaveLeadInput,
     UpdateLeadInput,
 )
+from ..services.agent_settings_service import AgentSettingsService
 from ..services.lead_extractor import LeadExtractor
 from ..services.lead_scoring_service import LeadScoringService
 from ..services.llm_lead_extractor import build_lead_extractor
@@ -168,6 +169,8 @@ class MockAgentOrchestrator:
             conversation, extraction, scoring, geospatial, lead
         )
 
+        agent_settings = AgentSettingsService(self.session).get()
+
         llm_request = self._build_llm_request(
             conversation=conversation,
             user_message=payload.message,
@@ -176,6 +179,7 @@ class MockAgentOrchestrator:
             scoring=scoring,
             geospatial=geospatial,
             history=history,
+            system_prompt=agent_settings.system_prompt,
         )
         llm_response = self.llm_provider.generate_response(llm_request)
 
@@ -752,6 +756,8 @@ class MockAgentOrchestrator:
         scoring: LeadScoringResult | None,
         geospatial: dict | None = None,
         history: list[dict] | None = None,
+        system_prompt: str | None = None,
+        knowledge: list[dict] | None = None,
     ) -> LLMRequest:
         return LLMRequest(
             conversation_id=conversation.id,
@@ -763,4 +769,6 @@ class MockAgentOrchestrator:
             extracted_data=extraction.to_event_payload(),
             geospatial=geospatial,
             history=history,
+            system_prompt=system_prompt,
+            knowledge=knowledge or [],
         )

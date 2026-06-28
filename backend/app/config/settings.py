@@ -61,6 +61,13 @@ class Settings(BaseSettings):
     roof_usable_factor: float = 0.5
     panel_area_m2: float = 2.6
 
+    knowledge_max_file_mb: int = 10
+    knowledge_top_k: int = 4
+    knowledge_min_rank: float = 0.01
+    knowledge_chunk_size: int = 800
+    knowledge_chunk_overlap: int = 100
+    knowledge_max_chunks: int = 400
+
     def get_database_url(self) -> str:
         if self.database_url:
             return self.database_url

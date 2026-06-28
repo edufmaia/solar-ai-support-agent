@@ -217,3 +217,19 @@ CREATE INDEX IF NOT EXISTS idx_knowledge_documents_active_category ON knowledge_
 CREATE INDEX IF NOT EXISTS idx_knowledge_documents_search
     ON knowledge_documents
     USING GIN (to_tsvector('simple', COALESCE(title, '') || ' ' || COALESCE(content, '')));
+
+-- knowledge_documents: one row per chunk (grouped per upload)
+ALTER TABLE knowledge_documents ADD COLUMN IF NOT EXISTS document_group_id UUID;
+ALTER TABLE knowledge_documents ADD COLUMN IF NOT EXISTS chunk_index INT NOT NULL DEFAULT 0;
+CREATE INDEX IF NOT EXISTS idx_knowledge_documents_group ON knowledge_documents (document_group_id);
+
+-- =========================================================
+-- 8) Agent settings (singleton: custom system prompt + RAG toggle)
+-- =========================================================
+CREATE TABLE IF NOT EXISTS agent_settings (
+    id SMALLINT PRIMARY KEY DEFAULT 1 CHECK (id = 1),
+    system_prompt TEXT,
+    knowledge_enabled BOOLEAN NOT NULL DEFAULT TRUE,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+INSERT INTO agent_settings (id) VALUES (1) ON CONFLICT (id) DO NOTHING;
