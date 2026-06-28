@@ -1,7 +1,8 @@
 from decimal import ROUND_HALF_UP, Decimal
-from typing import Any
+from typing import Any, cast
 
 from anthropic import Anthropic, APIError
+from anthropic.types import MessageParam
 
 from ..config.settings import Settings, get_settings
 from ..schemas.llm import LLMRequest, LLMResponse
@@ -39,7 +40,9 @@ class ClaudeProvider(BaseLLMProvider):
                 model=self.model_name,
                 max_tokens=self.max_tokens,
                 system=system,
-                messages=build_response_messages(request),
+                # Builder yields role/content dicts the SDK accepts at runtime;
+                # cast to satisfy the typed Messages API signature.
+                messages=cast(list[MessageParam], build_response_messages(request)),
             )
         except APIError as exc:
             raise LLMProviderInvocationError(

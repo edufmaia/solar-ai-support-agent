@@ -4,10 +4,11 @@ from typing import Any
 from pydantic import BaseModel
 
 
-class AgentTool(ABC):
+class AgentTool[TInput: BaseModel](ABC):
     """Base contract for an agent tool.
 
-    Subclasses set ``name``, ``description`` and ``input_model`` and implement
+    Subclasses set ``name``, ``description`` and ``input_model``, parameterize
+    the base with their input model (``AgentTool[SaveLeadInput]``), and implement
     ``execute``. ``tool_schema`` returns a provider-agnostic dict ready to be
     adapted to an LLM function/tool definition later.
     """
@@ -17,7 +18,7 @@ class AgentTool(ABC):
     input_model: type[BaseModel]
 
     @abstractmethod
-    def execute(self, payload: BaseModel) -> Any:
+    def execute(self, payload: TInput) -> Any:
         """Run the tool against the given validated input."""
 
     def tool_schema(self) -> dict[str, Any]:

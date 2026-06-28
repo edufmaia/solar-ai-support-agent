@@ -1,3 +1,4 @@
+from typing import cast
 from uuid import UUID
 
 import redis
@@ -30,7 +31,8 @@ class ChatwootConversationMap:
         if raw is None:
             return None
         try:
-            return UUID(raw)
+            # Redis client uses decode_responses=True, so values come back as str.
+            return UUID(cast(str, raw))
         except (ValueError, AttributeError):
             return None
 

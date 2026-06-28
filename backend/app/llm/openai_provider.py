@@ -1,7 +1,8 @@
 from decimal import ROUND_HALF_UP, Decimal
-from typing import Any
+from typing import Any, cast
 
 from openai import OpenAI, OpenAIError
+from openai.types.responses import ResponseInputParam
 
 from ..config.settings import Settings, get_settings
 from ..schemas.llm import LLMRequest, LLMResponse
@@ -37,7 +38,9 @@ class OpenAIProvider(BaseLLMProvider):
             response = self.client.responses.create(
                 model=self.model_name,
                 instructions=instructions,
-                input=build_response_messages(request),
+                # Builder yields role/content dicts the SDK accepts at runtime;
+                # cast to satisfy the typed Responses API signature.
+                input=cast(ResponseInputParam, build_response_messages(request)),
             )
         except OpenAIError as exc:
             raise LLMProviderInvocationError(f"OpenAI Responses API request failed: {exc}") from exc

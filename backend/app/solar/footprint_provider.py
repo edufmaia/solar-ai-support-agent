@@ -2,7 +2,7 @@ from decimal import ROUND_HALF_UP, Decimal
 from math import floor
 
 from ..config.settings import Settings, get_settings
-from ..schemas.solar import SolarPotentialResult
+from ..schemas.solar import SolarConfidence, SolarPotentialResult
 from .base import BaseSolarProvider
 from .consumption import (
     PANEL_WATTS,
@@ -58,7 +58,7 @@ class FootprintSolarProvider(BaseSolarProvider):
 
         if consumption is not None and roof_panels is not None:
             panels = min(consumption.panels, roof_panels)
-            confidence = "medium"
+            confidence: SolarConfidence = "medium"
             source = "overpass"
         elif consumption is not None:
             panels = consumption.panels

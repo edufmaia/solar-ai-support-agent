@@ -1,5 +1,6 @@
 from datetime import UTC, datetime
 from decimal import Decimal
+from typing import Any, cast
 
 from sqlalchemy.orm import Session
 
@@ -18,7 +19,7 @@ from ..schemas.conversation import ConversationCreate, ConversationRead
 from ..schemas.geospatial import GeospatialAnalysisRead
 from ..schemas.lead import LeadCreate, LeadRead
 from ..schemas.lead_extraction import LeadExtractionResult
-from ..schemas.lead_scoring import LeadScoringResult
+from ..schemas.lead_scoring import LeadIntent, LeadScoringResult, PropertyType
 from ..schemas.llm import LLMRequest
 from ..schemas.message import MessageCreate
 from ..schemas.session import SessionState
@@ -26,6 +27,7 @@ from ..schemas.tools import (
     ClassifyLeadInput,
     EstimateSolarPotentialInput,
     GeocodeAddressInput,
+    HandoffReason,
     RequestHumanHandoffInput,
     SaveLeadInput,
     UpdateLeadInput,
@@ -368,12 +370,13 @@ class MockAgentOrchestrator:
             )
             return conversation
 
-        conversation = self.conversation_repository.get_by_id(payload.conversation_id)
-        if conversation is None:
+        existing = self.conversation_repository.get_by_id(payload.conversation_id)
+        if existing is None:
             # Limitation: agent_events.conversation_id is NOT NULL and has a FK to
             # conversations(id), so invalid conversation IDs cannot be persisted
             # in agent_events without changing the schema.
             raise ConversationNotFoundError(str(payload.conversation_id))
+        conversation = existing
 
         self._record_event(
             AgentEventCreate(
@@ -491,8 +494,10 @@ class MockAgentOrchestrator:
                 name=lead.name,
                 city=lead.city,
                 average_energy_bill=lead.average_energy_bill,
-                property_type=lead.property_type,
-                intent=lead.intent,
+                # LeadRead stores these as free-text from the DB; in practice they
+                # hold the constrained values our extraction produces.
+                property_type=cast(PropertyType | None, lead.property_type),
+                intent=cast(LeadIntent | None, lead.intent),
                 has_solar_interest=(
                     extraction.has_solar_interest
                     or lead.intent in {"solar_interest", "solar_quote"}
@@ -565,6 +570,7 @@ class MockAgentOrchestrator:
 
         has_contact = bool((lead.phone if lead is not None else None) or extraction.phone)
 
+        reason: HandoffReason
         if extraction.wants_human:
             reason = "user_requested"
         elif scoring is not None and scoring.lead_temperature == "hot":
@@ -660,7 +666,7 @@ class MockAgentOrchestrator:
             return None
 
         found = analysis.latitude is not None and analysis.longitude is not None
-        summary = {
+        summary: dict[str, Any] = {
             "found": found,
             "address_confidence": analysis.address_confidence,
             "latitude": float(analysis.latitude) if analysis.latitude is not None else None,
