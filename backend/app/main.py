@@ -3,6 +3,7 @@ from pathlib import Path
 from fastapi import FastAPI
 from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
+from starlette.types import Scope
 
 from .api.admin import router as admin_router
 from .api.chat import router as chat_router
@@ -12,6 +13,17 @@ from .api.health import router as health_router
 from .api.metrics import router as metrics_router
 
 STATIC_DIR = Path(__file__).parent / "static"
+
+
+class NoCacheStaticFiles(StaticFiles):
+    """Serve static assets with `Cache-Control: no-cache` so browsers revalidate
+    (via ETag) on every load — cheap 304s when unchanged, always fresh after an
+    update. Avoids stale SPA assets (JS/CSS) lingering in the browser cache."""
+
+    async def get_response(self, path: str, scope: Scope):
+        response = await super().get_response(path, scope)
+        response.headers["Cache-Control"] = "no-cache"
+        return response
 
 
 def create_app() -> FastAPI:
@@ -29,7 +41,7 @@ def create_app() -> FastAPI:
     app.include_router(admin_router)
 
     if STATIC_DIR.is_dir():
-        app.mount("/ui", StaticFiles(directory=str(STATIC_DIR), html=True), name="ui")
+        app.mount("/ui", NoCacheStaticFiles(directory=str(STATIC_DIR), html=True), name="ui")
 
         @app.get("/", include_in_schema=False)
         def root() -> RedirectResponse:

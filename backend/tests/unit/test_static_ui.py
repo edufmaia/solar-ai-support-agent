@@ -58,6 +58,12 @@ def test_admin_panel_has_lightbox():
     assert 'id="lightbox"' in res.text
 
 
+def test_static_assets_send_no_cache():
+    res = client.get("/ui/js/admin-detail.js")
+    assert res.status_code == 200
+    assert "no-cache" in res.headers.get("cache-control", "")
+
+
 def test_inspector_removed():
     res = client.get("/ui/inspector/")
     assert res.status_code == 404
