@@ -65,10 +65,12 @@ def main() -> None:
         assert detail.geospatial.estimated_panel_min is not None
         assert detail.geospatial.estimated_panel_max is not None
 
-        # Event trail present and consistent with the turns.
-        event_types = {e.event_type for e in detail.events}
-        assert "solar_potential_completed" in event_types
-        assert "agent_turn_completed" in event_types
+        # Transcript present: both user messages and at least one assistant reply.
+        assert len(detail.messages) >= 3
+        roles = {m.role for m in detail.messages}
+        assert "user" in roles and "assistant" in roles
+        assert all(m.content for m in detail.messages)
+        assert not hasattr(detail, "events")
 
         print("Conversation-detail integration test passed.")
         print(
