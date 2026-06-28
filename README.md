@@ -4,6 +4,15 @@
 
 Agente de IA para atendimento inicial, qualificação de leads e pré-análise geoespacial para empresas de energia solar.
 
+## Índice
+
+- [Quickstart](#quickstart) · [Telas](#telas) · [Status atual](#status-atual)
+- [Arquitetura](#arquitetura) · [Stack](#stack) · [Estrutura principal](#estrutura-principal)
+- [Configuração de ambiente](#configuração-de-ambiente) · [Como subir o projeto](#como-subir-o-projeto) · [Endpoints](#endpoints)
+- [Interface web](#interface-web): [chat do cliente](#chat-do-cliente--httplocalhost8010ui) · [painel admin](#painel-interno-admin--httplocalhost8010uiadmin) · [widget embutível](#widget-embutível--uma-linha-de-script)
+- Validação: [API](#como-validar-a-api) · [chat mock](#como-validar-o-chat-em-modo-mock) · [OpenAI](#como-validar-o-chat-em-modo-openai) · [Claude](#como-validar-o-chat-em-modo-claude) · [leads/conversas](#como-validar-leads-e-conversas) · [eventos](#como-validar-eventos-do-agente) · [custo/tokens](#como-validar-o-custo-estimado-da-openai) · [métricas](#como-validar-as-métricas-do-agente) · [Chatwoot](#como-validar-o-webhook-do-chatwoot)
+- [Geocoding & solar](#geocoding) · [Testes & CI](#testes) · [Decisões técnicas](#decisões-técnicas) · [Roadmap](#roadmap)
+
 ## Quickstart
 
 Suba tudo com **um comando** (precisa apenas de Docker):
@@ -112,24 +121,22 @@ docs/
 
 ## Arquitetura
 
-```
-                         ┌──────────────────────────────────────────┐
-   POST /chat ───────────►                                          │
-   POST /webhooks/chatwoot ─► api/  ──►  MockAgentOrchestrator       │
-   GET  /metrics ─────────►  (FastAPI)        (agents/)              │
-   GET  /health[/db] ─────►        │             │                   │
-                         │         │             ├─► services/  (extração, scoring, métricas)
-                         │         │             ├─► tools/     (save/update/classify/handoff)
-                         │         │             ├─► llm/       (mock | openai | claude)
-                         │         │             ├─► geocoding/ (mock | nominatim)
-                         │         │             ├─► solar/     (mock)
-                         │         │             └─► integrations/chatwoot/
-                         │         ▼             ▼
-                         │   repositories/ (SQL)   session/ (Redis)
-                         └─────────┬───────────────────┬────────────┘
-                                   ▼                   ▼
-                            PostgreSQL            Redis (cache/TTL)
-                         (fonte da verdade)   (sessão + mapa Chatwoot)
+```mermaid
+flowchart TD
+    C1["POST /chat"] --> API
+    C2["POST /webhooks/chatwoot"] --> API
+    C3["GET /metrics"] --> API
+    C4["GET /health[/db]"] --> API
+    API["api/ (FastAPI)"] --> ORCH["MockAgentOrchestrator (agents/)"]
+    ORCH --> SVC["services/ — extração · scoring · métricas"]
+    ORCH --> TOOLS["tools/ — save · update · classify · handoff"]
+    ORCH --> LLM["llm/ — mock · openai · claude"]
+    ORCH --> GEO["geocoding/ · solar/ — mock · nominatim"]
+    ORCH --> INT["integrations/chatwoot/"]
+    ORCH --> REPO["repositories/ (SQL)"]
+    ORCH --> SESS["session/ (Redis)"]
+    REPO --> PG[("PostgreSQL — fonte da verdade")]
+    SESS --> RD[("Redis — sessão + mapa Chatwoot, TTL")]
 ```
 
 `MockAgentOrchestrator.handle_chat()` é o coração do sistema. Para cada mensagem, em ordem: recupera/cria a conversa → recupera a sessão efêmera no Redis → persiste a mensagem do usuário → extrai dados do lead → cria/atualiza e associa o lead → calcula o score base → (com consentimento + endereço) faz geocoding + potencial solar → reavalia o score com os dados geoespaciais → decide handoff humano (usuário/`hot`/`technical_review`) → monta o contexto e chama o LLM → avança o estado da conversa → persiste a resposta → emite `agent_turn_completed` (custo/tokens consolidados) → salva o snapshot da sessão no Redis. Cada passo relevante emite um `agent_event` para rastreabilidade.
@@ -509,6 +516,36 @@ Resultado esperado: tabelas como:
 - `model_costs`
 - `knowledge_documents`
 
+## Como validar o chat em modo Claude
+
+Defina no `.env`:
+
+```env
+LLM_PROVIDER=claude
+ANTHROPIC_API_KEY=sua_chave
+CLAUDE_MODEL=claude-opus-4-8
+```
+
+Rebuild:
+
+```bash
+docker compose -p solar-ai-support-agent up --build -d
+```
+
+Resultado esperado:
+
+- resposta gerada pela Anthropic
+- `mode = "claude"`
+- mensagem do assistant salva com `model_provider = claude`
+- mensagem do assistant salva com `model_name =` o modelo configurado
+- evento `llm_claude_response_generated` registrado
+
+## Geocoding
+
+`GEOCODING_PROVIDER` aceita `mock` (default, determinístico) e `nominatim` (OpenStreetMap, gratuito, sem chave — exige `User-Agent`, configurável via `NOMINATIM_USER_AGENT`). A análise geoespacial é disparada quando o usuário autoriza explicitamente ("autorizo", "pode analisar") e o lead já tem endereço; o resultado é gravado em `geospatial_analysis` e registrado no evento `geospatial_analysis_completed`.
+
+Após o geocoding, quando há coordenadas, o agente estima o potencial solar preliminar (faixa de painéis, kWp, nível de confiança e necessidade de revisão técnica) com base na conta de energia do lead — sem conta, cai para uma estimativa determinística por coordenadas. `SOLAR_PROVIDER` aceita `mock` (default); o resultado é gravado nas colunas solares de `geospatial_analysis` e registrado no evento `solar_potential_completed`. É uma pré-análise e não substitui vistoria técnica.
+
 ## Endpoints
 
 | Método | Rota | Descrição |
@@ -656,39 +693,11 @@ O GitHub Actions (`.github/workflows/ci.yml`) roda a cada push/PR:
 - `docs/specs/001-solar-ai-support-agent/test-plan.md`
 - `docs/specs/001-solar-ai-support-agent/tasks.md`
 
-## Como validar o chat em modo Claude
-
-Defina no `.env`:
-
-```env
-LLM_PROVIDER=claude
-ANTHROPIC_API_KEY=sua_chave
-CLAUDE_MODEL=claude-opus-4-8
-```
-
-Rebuild:
-
-```bash
-docker compose -p solar-ai-support-agent up --build -d
-```
-
-Resultado esperado:
-
-- resposta gerada pela Anthropic
-- `mode = "claude"`
-- mensagem do assistant salva com `model_provider = claude`
-- mensagem do assistant salva com `model_name =` o modelo configurado
-- evento `llm_claude_response_generated` registrado
-
-## Geocoding
-
-`GEOCODING_PROVIDER` aceita `mock` (default, determinístico) e `nominatim` (OpenStreetMap, gratuito, sem chave — exige `User-Agent`, configurável via `NOMINATIM_USER_AGENT`). A análise geoespacial é disparada quando o usuário autoriza explicitamente ("autorizo", "pode analisar") e o lead já tem endereço; o resultado é gravado em `geospatial_analysis` e registrado no evento `geospatial_analysis_completed`.
-
-Após o geocoding, quando há coordenadas, o agente estima o potencial solar preliminar (faixa de painéis, kWp, nível de confiança e necessidade de revisão técnica) com base na conta de energia do lead — sem conta, cai para uma estimativa determinística por coordenadas. `SOLAR_PROVIDER` aceita `mock` (default); o resultado é gravado nas colunas solares de `geospatial_analysis` e registrado no evento `solar_potential_completed`. É uma pré-análise e não substitui vistoria técnica.
-
 ## Roadmap
 
-Progresso: **25/25 tarefas (100%) ✅** — roadmap completo. Detalhe em [`docs/specs/001-solar-ai-support-agent/tasks.md`](docs/specs/001-solar-ai-support-agent/tasks.md).
+O núcleo (spec **001**) está **100% concluído** e o projeto evoluiu além dele com três iniciativas adicionais (distribuição, footprint solar e hardening). Detalhe das tarefas do núcleo em [`docs/specs/001-solar-ai-support-agent/tasks.md`](docs/specs/001-solar-ai-support-agent/tasks.md).
+
+**Núcleo — spec 001 (agente, geoespacial, monitoramento, integrações):**
 
 | Fase | Tarefas | Status |
 |---|---|---|
@@ -698,3 +707,13 @@ Progresso: **25/25 tarefas (100%) ✅** — roadmap completo. Detalhe em [`docs/
 | Monitoramento (custos, métricas) | T019–T020 | ✅ |
 | Integrações (Redis, Chatwoot) | T021–T022 | ✅ |
 | Documentação e portfólio | T023–T024 | ✅ |
+| Frontend (chat + inspector) e CI | T025–T026 | ✅ |
+
+**Iniciativas além do núcleo:**
+
+| Iniciativa | Entregue | Status |
+|---|---|---|
+| **002 — Distribuição plug-and-play** | chat white-label (`branding.json`), widget embutível (1 linha de `<script>`), painel admin com login, empacotamento | ✅ |
+| **003 — Footprint solar** | provider solar `footprint` (área de telhado via OSM/Overpass + consumo) | ✅ |
+| **Extração de leads por LLM** | camada provider-agnóstica (OpenAI/Claude/regex) com memória conversacional | ✅ |
+| **004 — Hardening & qualidade** | deps pinadas, ruff (lint+format), mypy, cobertura com gate, pip-audit — tudo no CI | ✅ |
