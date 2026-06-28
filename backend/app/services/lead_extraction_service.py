@@ -85,7 +85,10 @@ class LeadExtractionService(LeadExtractor):
 
     GEO_CONSENT_KEYWORDS = [
         "autorizo",
+        "autorizado",
         "pode analisar",
+        "pode sim",
+        "sim pode",
         "pode fazer a analise",
         "faca a analise",
         "quero a analise",

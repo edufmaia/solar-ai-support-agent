@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 
 from ..geocoding import BaseGeocodingProvider, GeocodingProviderError, build_geocoding_provider
 from ..llm import BaseLLMProvider, build_llm_provider
+from ..llm.context import sanitize_assistant_text
 from ..repositories import (
     AgentEventRepository,
     ConversationRepository,
@@ -214,6 +215,7 @@ class MockAgentOrchestrator:
             knowledge=knowledge,
         )
         llm_response = self.llm_provider.generate_response(llm_request)
+        llm_response.content = sanitize_assistant_text(llm_response.content)
 
         self._record_event(
             AgentEventCreate(

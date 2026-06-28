@@ -1,7 +1,32 @@
 import json
+import re
 from typing import Any
 
 from ..schemas.llm import LLMRequest
+
+_MD_IMG = re.compile(r"!\[[^\]]*\]\([^)]*\)")
+_BRACKET_IMG = re.compile(r"\[[^\]]*(?:imagem|imagens|image|foto|mapa)[^\]]*\]", re.IGNORECASE)
+_IMG_ANNOUNCE = re.compile(
+    r"(aqui (está|esta)|segue|vou (enviar|mostrar|compartilhar)|enviando|compartilho)"
+    r".*(imagem|imagens|foto|mapa)",
+    re.IGNORECASE,
+)
+
+
+def sanitize_assistant_text(text: str) -> str:
+    """Strip image placeholders/announcements from assistant text.
+
+    The customer chat is text-only; LLMs sometimes promise or insert an image
+    (e.g. `[Imagem geoespacial]`) it cannot send. This deterministic guard
+    removes such references so the customer never sees a broken placeholder.
+    """
+    text = _MD_IMG.sub("", text)
+    text = _BRACKET_IMG.sub("", text)
+    kept = [line for line in text.split("\n") if not _IMG_ANNOUNCE.search(line)]
+    out = "\n".join(kept)
+    out = re.sub(r"[ \t]+\n", "\n", out)
+    out = re.sub(r"\n{3,}", "\n\n", out)
+    return out.strip()
 
 
 def geospatial_prompt_section(geospatial: dict[str, Any] | None) -> str:
@@ -53,6 +78,13 @@ DEFAULT_RESPONSE_INSTRUCTIONS = (
     "- Não prometa economia exata nem quantidade exata de placas. Quando houver "
     "pré-análise geoespacial/solar no contexto, você pode citar a faixa estimada "
     "de placas e a potência (kWp), sempre como estimativa preliminar.\n"
+    "- Você se comunica APENAS por texto neste chat: NÃO envie nem prometa imagens, "
+    "fotos, mapas ou anexos, e não use placeholders como [imagem]. Descreva em "
+    "palavras. (A imagem de satélite do imóvel aparece só no painel interno da equipe.)\n"
+    "- Só afirme resultados de pré-análise geoespacial/solar que ESTEJAM no contexto "
+    "fornecido. Se ainda não houver análise no contexto, NÃO diga que já a realizou; "
+    "ofereça fazê-la e peça a autorização do cliente (ex.: 'Posso analisar seu "
+    'endereço para uma pré-análise solar? Se sim, responda "autorizo".\').\n'
     "- Deixe claro que qualquer análise é preliminar e não substitui vistoria técnica.\n"
     "- Quando fizer sentido, sugira encaminhamento para análise humana ou técnica."
 )
