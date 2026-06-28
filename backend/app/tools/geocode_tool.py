@@ -5,7 +5,7 @@ from ..schemas.tools import GeocodeAddressInput
 from .base import AgentTool
 
 
-class GeocodeAddressTool(AgentTool):
+class GeocodeAddressTool(AgentTool[GeocodeAddressInput]):
     name = "geocode_address"
     description = "Converte o endereço do lead em coordenadas e registra a análise geoespacial."
     input_model = GeocodeAddressInput

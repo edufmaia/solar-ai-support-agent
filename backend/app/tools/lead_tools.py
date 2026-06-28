@@ -6,7 +6,7 @@ from ..services.lead_scoring_service import LeadScoringService
 from .base import AgentTool
 
 
-class SaveLeadTool(AgentTool):
+class SaveLeadTool(AgentTool[SaveLeadInput]):
     name = "save_lead"
     description = "Cria um novo lead com os dados coletados na conversa."
     input_model = SaveLeadInput
@@ -18,7 +18,7 @@ class SaveLeadTool(AgentTool):
         return self.lead_repository.create(LeadCreate(**payload.model_dump()))
 
 
-class UpdateLeadTool(AgentTool):
+class UpdateLeadTool(AgentTool[UpdateLeadInput]):
     name = "update_lead"
     description = "Atualiza os dados básicos de um lead existente (campos nulos são ignorados)."
     input_model = UpdateLeadInput
@@ -31,7 +31,7 @@ class UpdateLeadTool(AgentTool):
         return self.lead_repository.update_basic_info(payload.lead_id, LeadCreate(**data))
 
 
-class ClassifyLeadTool(AgentTool):
+class ClassifyLeadTool(AgentTool[ClassifyLeadInput]):
     name = "classify_lead"
     description = "Calcula o score e a temperatura do lead e persiste o resultado."
     input_model = ClassifyLeadInput

@@ -5,7 +5,7 @@ from ..schemas.tools import RequestHumanHandoffInput
 from .base import AgentTool
 
 
-class RequestHumanHandoffTool(AgentTool):
+class RequestHumanHandoffTool(AgentTool[RequestHumanHandoffInput]):
     name = "request_human_handoff"
     description = (
         "Encaminha a conversa para atendimento humano e marca o lead como handoff solicitado."

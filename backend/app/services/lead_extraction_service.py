@@ -2,7 +2,7 @@ import re
 from decimal import Decimal, InvalidOperation
 from unicodedata import normalize
 
-from ..schemas.lead_extraction import LeadExtractionResult
+from ..schemas.lead_extraction import LeadExtractionResult, LeadIntent, PropertyType
 from .lead_extractor import LeadExtractor
 
 
@@ -192,7 +192,7 @@ class LeadExtractionService(LeadExtractor):
 
         return None
 
-    def _extract_property_type(self, normalized_message: str) -> str | None:
+    def _extract_property_type(self, normalized_message: str) -> PropertyType | None:
         if any(keyword in normalized_message for keyword in self.COMMERCIAL_KEYWORDS):
             return "commercial"
 
@@ -201,7 +201,7 @@ class LeadExtractionService(LeadExtractor):
 
         return None
 
-    def _extract_intent(self, normalized_message: str) -> str:
+    def _extract_intent(self, normalized_message: str) -> LeadIntent:
         if any(keyword in normalized_message for keyword in self.SOLAR_QUOTE_KEYWORDS):
             return "solar_quote"
 

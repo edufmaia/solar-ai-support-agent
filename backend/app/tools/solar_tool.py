@@ -5,7 +5,7 @@ from ..solar.base import BaseSolarProvider
 from .base import AgentTool
 
 
-class EstimateSolarPotentialTool(AgentTool):
+class EstimateSolarPotentialTool(AgentTool[EstimateSolarPotentialInput]):
     name = "estimate_solar_potential"
     description = (
         "Estima o potencial solar preliminar a partir das coordenadas do lead e "

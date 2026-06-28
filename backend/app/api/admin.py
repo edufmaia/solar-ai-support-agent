@@ -7,7 +7,7 @@ from ..config.database import get_db_session
 from ..schemas.admin import ConversationListResponse, LoginRequest, LoginResponse
 from ..schemas.conversation_detail import ConversationDetail
 from ..schemas.metrics import MetricsResponse
-from ..security.admin_auth import login, logout, require_admin
+from ..security.admin_auth import _token_from_header, login, logout, require_admin
 from ..services.admin_service import AdminService
 from ..services.conversation_detail_service import ConversationDetailService
 from ..services.metrics_service import MetricsService
@@ -26,7 +26,7 @@ def admin_login(body: LoginRequest) -> LoginResponse:
     dependencies=[Depends(require_admin)],
 )
 def admin_logout(authorization: str | None = Header(default=None)) -> Response:
-    logout(authorization[len("Bearer ") :].strip())
+    logout(_token_from_header(authorization))
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 

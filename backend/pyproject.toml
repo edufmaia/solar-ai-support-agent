@@ -29,6 +29,17 @@ extend-immutable-calls = [
 # Tests may use assert-style and longer expressions freely
 "tests/**" = ["B011"]
 
+[tool.mypy]
+python_version = "3.12"
+# Check `app` as a package (not loose files) so intra-package relative
+# imports (`from ..config import ...`) resolve correctly.
+packages = ["app"]
+ignore_missing_imports = true
+warn_unused_ignores = true
+warn_redundant_casts = true
+no_implicit_optional = true
+check_untyped_defs = true
+
 [tool.coverage.run]
 branch = true
 source = ["app"]

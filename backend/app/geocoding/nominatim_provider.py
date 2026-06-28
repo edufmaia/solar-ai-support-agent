@@ -4,7 +4,7 @@ from typing import Any
 import httpx
 
 from ..config.settings import Settings, get_settings
-from ..schemas.geocoding import GeocodingResult
+from ..schemas.geocoding import GeocodingResult, GeoConfidence
 from .base import BaseGeocodingProvider, GeocodingProviderInvocationError
 
 
@@ -23,7 +23,12 @@ class NominatimGeocodingProvider(BaseGeocodingProvider):
                 raw_response={"provider": "nominatim", "query": address},
             )
 
-        params = {"q": address, "format": "json", "limit": 1, "addressdetails": 1}
+        params: dict[str, str | int] = {
+            "q": address,
+            "format": "json",
+            "limit": 1,
+            "addressdetails": 1,
+        }
         headers = {"User-Agent": self.settings.nominatim_user_agent}
 
         try:
@@ -52,6 +57,7 @@ class NominatimGeocodingProvider(BaseGeocodingProvider):
 
         top = data[0]
         address_details = top.get("address", {}) or {}
+        confidence: GeoConfidence
         if address_details.get("house_number"):
             confidence = "high"
         elif address_details.get("road"):

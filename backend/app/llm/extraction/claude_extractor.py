@@ -36,7 +36,9 @@ class ClaudeFieldExtractor(BaseLeadFieldExtractor):
             f"{json.dumps(history, ensure_ascii=False, default=str)}"
         )
         try:
-            message = self.client.messages.create(
+            # tools/tool_choice/messages are dict literals the SDK accepts at
+            # runtime; they don't match the typed overloads statically.
+            message = self.client.messages.create(  # type: ignore[call-overload]
                 model=self.model_name,
                 max_tokens=self.max_tokens,
                 system=build_extraction_system_prompt(),

@@ -1,6 +1,6 @@
 from decimal import ROUND_HALF_UP, Decimal
 
-from ..schemas.solar import SolarPotentialResult
+from ..schemas.solar import SolarConfidence, SolarPotentialResult
 from .base import BaseSolarProvider
 from .consumption import (
     PANEL_WATTS,
@@ -26,7 +26,7 @@ class MockSolarProvider(BaseSolarProvider):
         if estimate is not None:
             panels = estimate.panels
             kwp = estimate.kwp
-            confidence = "medium"
+            confidence: SolarConfidence = "medium"
             raw = {
                 "provider": "mock",
                 "average_energy_bill": str(average_energy_bill),

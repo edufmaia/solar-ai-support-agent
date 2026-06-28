@@ -5,6 +5,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from ..schemas.lead import LeadCreate, LeadRead, LeadScoreUpdate
+from ..schemas.lead_scoring import LeadTemperature
 from ..schemas.metrics import LeadMetrics
 
 
@@ -81,7 +82,7 @@ class LeadRepository:
         self,
         lead_id: UUID,
         lead_score: int,
-        lead_temperature: str,
+        lead_temperature: LeadTemperature,
     ) -> LeadRead | None:
         payload = LeadScoreUpdate(
             lead_score=lead_score,
