@@ -602,11 +602,32 @@ docker compose -p solar-ai-support-agent exec backend python tests/chatwoot_test
 
 > O serviço `backend` roda uma imagem buildada (sem volume mount do código). Após editar `backend/`, rode `docker compose -p solar-ai-support-agent up --build -d backend` antes de testar.
 
+### Qualidade de código
+
+As dependências de runtime ficam fixadas (pinned) em `backend/requirements.txt`; as ferramentas de desenvolvimento (pytest, ruff, mypy, pytest-cov, pip-audit) ficam em `backend/requirements-dev.txt` (a imagem instala ambas). A configuração das ferramentas mora em `backend/pyproject.toml`.
+
+```bash
+# Lint + formatação (ruff)
+docker compose -p solar-ai-support-agent exec backend sh -c "cd /app && ruff check . && ruff format --check ."
+
+# Type-checking (mypy, pacote app/)
+docker compose -p solar-ai-support-agent exec backend sh -c "cd /app && mypy"
+
+# Cobertura (gate de regressão em 74%)
+docker compose -p solar-ai-support-agent exec backend sh -c "cd /app && python -m pytest tests/unit -q --cov=app --cov-fail-under=74"
+
+# Auditoria de vulnerabilidades das deps de runtime
+docker compose -p solar-ai-support-agent exec backend sh -c "cd /app && pip-audit -r requirements.txt --strict"
+```
+
 ### Integração contínua (CI)
 
 O GitHub Actions (`.github/workflows/ci.yml`) roda a cada push/PR:
 
-- **unit** — instala as deps e roda `pytest tests/unit` (sem dependências externas).
+- **lint** — `ruff check` + `ruff format --check`.
+- **typecheck** — `mypy` sobre o pacote `app/`.
+- **unit** — roda `pytest tests/unit` com cobertura e gate de regressão (`--cov-fail-under=74`).
+- **security** — `pip-audit` sobre as deps de runtime fixadas.
 - **integration** — sobe serviços Postgres + Redis, aplica o schema com `python database/apply_schema.py` e executa os scripts de integração.
 
 ## Decisões técnicas
