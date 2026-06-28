@@ -141,16 +141,20 @@ class ConversationRepository:
 
     def metrics(self) -> ConversationMetrics:
         """Aggregate conversation counts: total and how many are with a human."""
-        row = self.session.execute(
-            text(
-                """
+        row = (
+            self.session.execute(
+                text(
+                    """
                 SELECT
                     COUNT(*) AS total,
                     COUNT(*) FILTER (WHERE assigned_to_human) AS assigned_to_human
                 FROM conversations
                 """
+                )
             )
-        ).mappings().one()
+            .mappings()
+            .one()
+        )
         return ConversationMetrics(
             total=row["total"],
             assigned_to_human=row["assigned_to_human"],
@@ -178,10 +182,7 @@ class ConversationRepository:
             """
         )
         result = self.session.execute(query, {"limit": limit, "offset": offset})
-        return [
-            ConversationListItem.model_validate(dict(row))
-            for row in result.mappings().all()
-        ]
+        return [ConversationListItem.model_validate(dict(row)) for row in result.mappings().all()]
 
     def count_all(self) -> int:
         return self.session.execute(

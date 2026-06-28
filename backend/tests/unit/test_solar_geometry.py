@@ -25,6 +25,9 @@ def test_area_of_10m_square_is_about_100m2():
 
 def test_point_inside_and_outside():
     sq = _square(20.0)
-    center = (LAT0 + 10.0 / M_PER_DEG_LAT, LON0 + 10.0 / (M_PER_DEG_LAT * math.cos(math.radians(LAT0))))
+    center = (
+        LAT0 + 10.0 / M_PER_DEG_LAT,
+        LON0 + 10.0 / (M_PER_DEG_LAT * math.cos(math.radians(LAT0))),
+    )
     assert point_in_polygon(center, sq) is True
     assert point_in_polygon((LAT0 + 1.0, LON0 + 1.0), sq) is False

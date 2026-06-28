@@ -7,8 +7,8 @@ events. Cleans up the lead/conversation it creates. Run inside the container:
     docker compose -p solar-ai-support-agent exec backend python tests/metrics_test.py
 """
 
-from pathlib import Path
 import sys
+from pathlib import Path
 from uuid import UUID
 
 from sqlalchemy import text

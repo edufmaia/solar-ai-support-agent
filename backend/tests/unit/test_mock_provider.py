@@ -121,9 +121,7 @@ def test_geospatial_without_solar_with_contact_hands_off():
 def test_hot_progression_varies_response_text():
     provider = MockLLMProvider()
     no_address = provider.generate_response(_request(lead_data={})).content
-    with_address = provider.generate_response(
-        _request(lead_data={"address": "Rua X, 1"})
-    ).content
+    with_address = provider.generate_response(_request(lead_data={"address": "Rua X, 1"})).content
     after_geo = provider.generate_response(
         _request(lead_data={"address": "Rua X, 1"}, geospatial=_geospatial_with_solar())
     ).content

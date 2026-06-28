@@ -2,7 +2,6 @@ from decimal import Decimal
 from uuid import uuid4
 
 import pytest
-
 from app.config.settings import Settings
 from app.llm.base import LLMProviderConfigurationError, LLMProviderInvocationError
 from app.llm.claude_provider import ClaudeProvider
@@ -110,7 +109,10 @@ def test_claude_uses_history_messages_and_hardened_prompt():
 
 
 def test_event_type_and_source_follow_base_contract():
-    provider = ClaudeProvider(settings=_settings(), client=_FakeClient(_FakeMessage([], _FakeUsage(0, 0), "claude-opus-4-8")))
+    provider = ClaudeProvider(
+        settings=_settings(),
+        client=_FakeClient(_FakeMessage([], _FakeUsage(0, 0), "claude-opus-4-8")),
+    )
 
     assert provider.provider_name == "claude"
     assert provider.event_source == "claude_provider"
@@ -145,9 +147,7 @@ def test_api_error_raises_invocation_error():
 
     class _ErrorMessages:
         def create(self, **_kwargs):
-            raise APIConnectionError(
-                request=httpx.Request("POST", "https://api.anthropic.com")
-            )
+            raise APIConnectionError(request=httpx.Request("POST", "https://api.anthropic.com"))
 
     class _ErrorClient:
         messages = _ErrorMessages()

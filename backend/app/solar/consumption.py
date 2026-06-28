@@ -3,17 +3,17 @@ from dataclasses import dataclass
 from decimal import Decimal
 from math import ceil
 
-TARIFF_BRL_PER_KWH = Decimal("0.95")       # tarifa media residencial BR
-PEAK_SUN_HOURS = Decimal("4.5")            # horas de sol pico medias BR
-PERFORMANCE_RATIO = Decimal("0.75")        # perdas do sistema
-PANEL_WATTS = 550                          # modulo de referencia
+TARIFF_BRL_PER_KWH = Decimal("0.95")  # tarifa media residencial BR
+PEAK_SUN_HOURS = Decimal("4.5")  # horas de sol pico medias BR
+PERFORMANCE_RATIO = Decimal("0.75")  # perdas do sistema
+PANEL_WATTS = 550  # modulo de referencia
 TECH_REVIEW_KWP_THRESHOLD = Decimal("10")  # acima disso, exige revisao tecnica
 
 
 @dataclass(frozen=True)
 class ConsumptionEstimate:
     panels: int
-    kwp: Decimal          # unquantized
+    kwp: Decimal  # unquantized
     monthly_kwh: Decimal
 
 

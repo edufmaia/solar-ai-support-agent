@@ -8,8 +8,7 @@ from .base import AgentTool
 class RequestHumanHandoffTool(AgentTool):
     name = "request_human_handoff"
     description = (
-        "Encaminha a conversa para atendimento humano e marca o lead como "
-        "handoff solicitado."
+        "Encaminha a conversa para atendimento humano e marca o lead como handoff solicitado."
     )
     input_model = RequestHumanHandoffInput
 

@@ -1,4 +1,4 @@
-﻿from decimal import Decimal, ROUND_HALF_UP
+from decimal import ROUND_HALF_UP, Decimal
 from typing import Any
 
 from openai import OpenAI, OpenAIError
@@ -6,7 +6,11 @@ from openai import OpenAI, OpenAIError
 from ..config.settings import Settings, get_settings
 from ..schemas.llm import LLMRequest, LLMResponse
 from .base import BaseLLMProvider, LLMProviderConfigurationError, LLMProviderInvocationError
-from .context import build_response_context_block, build_response_instructions, build_response_messages
+from .context import (
+    build_response_context_block,
+    build_response_instructions,
+    build_response_messages,
+)
 
 
 class OpenAIProvider(BaseLLMProvider):
@@ -36,9 +40,7 @@ class OpenAIProvider(BaseLLMProvider):
                 input=build_response_messages(request),
             )
         except OpenAIError as exc:
-            raise LLMProviderInvocationError(
-                f"OpenAI Responses API request failed: {exc}"
-            ) from exc
+            raise LLMProviderInvocationError(f"OpenAI Responses API request failed: {exc}") from exc
 
         content = self._extract_output_text(response)
         input_tokens, output_tokens = self._extract_usage(response)

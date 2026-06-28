@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from decimal import Decimal
 from uuid import uuid4
 
@@ -9,7 +9,7 @@ from app.services.admin_service import AdminService
 def _item(name):
     return ConversationListItem(
         conversation_id=uuid4(),
-        started_at=datetime(2026, 6, 26, tzinfo=timezone.utc),
+        started_at=datetime(2026, 6, 26, tzinfo=UTC),
         channel="api",
         status="open",
         assigned_to_human=False,

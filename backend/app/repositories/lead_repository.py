@@ -150,15 +150,19 @@ class LeadRepository:
     def metrics(self) -> LeadMetrics:
         """Aggregate lead counts: total and breakdown by temperature."""
         total = self.session.execute(text("SELECT COUNT(*) FROM leads")).scalar_one()
-        rows = self.session.execute(
-            text(
-                """
+        rows = (
+            self.session.execute(
+                text(
+                    """
                 SELECT COALESCE(lead_temperature, 'unscored') AS temperature, COUNT(*) AS count
                 FROM leads
                 GROUP BY COALESCE(lead_temperature, 'unscored')
                 """
+                )
             )
-        ).mappings().all()
+            .mappings()
+            .all()
+        )
         by_temperature = {row["temperature"]: row["count"] for row in rows}
         return LeadMetrics(total=total, by_temperature=by_temperature)
 

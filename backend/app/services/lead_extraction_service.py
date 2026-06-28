@@ -62,7 +62,16 @@ class LeadExtractionService(LeadExtractor):
     ]
 
     RESIDENTIAL_KEYWORDS = ["casa", "residencia", "residência", "apartamento", "apto"]
-    COMMERCIAL_KEYWORDS = ["comercio", "comércio", "empresa", "loja", "galpao", "galpão", "escritorio", "escritório"]
+    COMMERCIAL_KEYWORDS = [
+        "comercio",
+        "comércio",
+        "empresa",
+        "loja",
+        "galpao",
+        "galpão",
+        "escritorio",
+        "escritório",
+    ]
 
     HUMAN_REQUEST_KEYWORDS = [
         "atendente",
@@ -85,9 +94,7 @@ class LeadExtractionService(LeadExtractor):
 
     # Brazilian phone: optional +55, DDD (2 digits, optional parens), then 8-9
     # subscriber digits with optional space/dot/dash separators.
-    PHONE_PATTERN = re.compile(
-        r"(?:\+?55\s*)?\(?\d{2}\)?[\s.-]*\d{4,5}[\s.-]?\d{4}"
-    )
+    PHONE_PATTERN = re.compile(r"(?:\+?55\s*)?\(?\d{2}\)?[\s.-]*\d{4,5}[\s.-]?\d{4}")
 
     # Best-effort address: a logradouro keyword through the end of the clause
     # (stops at ';' or newline). Commas/periods inside are kept.
@@ -152,13 +159,17 @@ class LeadExtractionService(LeadExtractor):
             if not match:
                 continue
 
-            formatted = self._format_words(self._strip_leading_article(self._clean_fragment(match.group(1))))
+            formatted = self._format_words(
+                self._strip_leading_article(self._clean_fragment(match.group(1)))
+            )
             if formatted:
                 return formatted
 
         origin = self.ORIGIN_CITY_PATTERN.search(message)
         if origin:
-            formatted = self._format_words(self._strip_leading_article(self._clean_fragment(origin.group(1))))
+            formatted = self._format_words(
+                self._strip_leading_article(self._clean_fragment(origin.group(1)))
+            )
             if formatted:
                 return formatted
 
@@ -231,7 +242,12 @@ class LeadExtractionService(LeadExtractor):
     @staticmethod
     def _clean_fragment(fragment: str) -> str:
         cleaned = fragment.strip(" ,.;:-")
-        cleaned = re.split(r"\b(minha|minhas|meu|meus|quero|tenho|para|e)\b", cleaned, maxsplit=1, flags=re.IGNORECASE)[0]
+        cleaned = re.split(
+            r"\b(minha|minhas|meu|meus|quero|tenho|para|e)\b",
+            cleaned,
+            maxsplit=1,
+            flags=re.IGNORECASE,
+        )[0]
         cleaned = cleaned.strip(" ,.;:-")
         return cleaned
 

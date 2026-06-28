@@ -8,8 +8,8 @@ Postgres rows and the Redis key. Run inside the container:
     docker compose -p solar-ai-support-agent exec backend python tests/session_test.py
 """
 
-from pathlib import Path
 import sys
+from pathlib import Path
 from uuid import UUID
 
 from sqlalchemy import text

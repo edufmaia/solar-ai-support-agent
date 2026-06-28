@@ -2,7 +2,6 @@ from uuid import uuid4
 
 import httpx
 import pytest
-
 from app.config.settings import Settings
 from app.integrations.chatwoot.client import (
     ChatwootClient,
@@ -39,6 +38,7 @@ def _settings(**overrides) -> Settings:
 
 # --- ChatwootClient ---------------------------------------------------------
 
+
 def test_send_message_builds_request():
     http = _CapturingHttp()
     client = ChatwootClient(settings=_settings(), client=http)
@@ -65,6 +65,7 @@ def test_send_message_wraps_http_error():
 
 
 # --- ChatwootWebhookService fakes ------------------------------------------
+
 
 class _FakeOrchestrator:
     def __init__(self):

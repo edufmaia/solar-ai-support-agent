@@ -1,4 +1,4 @@
-from typing import Callable
+from collections.abc import Callable
 
 from ..config.settings import Settings, get_settings
 from ..schemas.llm import LLMRequest, LLMResponse

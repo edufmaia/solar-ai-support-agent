@@ -1,6 +1,6 @@
 from decimal import Decimal
 
-from app.schemas.lead_scoring import LeadScoringInput
+from app.schemas.lead_scoring import LeadScoringInput, LeadScoringResult
 from app.services.lead_scoring_service import LeadScoringService
 
 
@@ -62,9 +62,6 @@ def test_mid_value_residential_interest_is_hot():
     assert result.lead_temperature == "hot"
 
 
-from app.schemas.lead_scoring import LeadScoringResult
-
-
 def _base(score=50):
     return LeadScoringResult(lead_score=score, lead_temperature="warm", score_reasons=["base"])
 
@@ -113,8 +110,12 @@ def test_apply_geospatial_low_potential_low_confidence():
 
 
 def test_apply_geospatial_requires_technical_review_adds_reason_only():
-    without = LeadScoringService().apply_geospatial(_base(50), _geo(kwp=12.0, confidence="high", tech_review=False))
-    with_review = LeadScoringService().apply_geospatial(_base(50), _geo(kwp=12.0, confidence="high", tech_review=True))
+    without = LeadScoringService().apply_geospatial(
+        _base(50), _geo(kwp=12.0, confidence="high", tech_review=False)
+    )
+    with_review = LeadScoringService().apply_geospatial(
+        _base(50), _geo(kwp=12.0, confidence="high", tech_review=True)
+    )
     assert with_review.lead_score == without.lead_score  # flag adds no numeric weight
     assert "Requer revisão técnica (consultor humano)" in with_review.score_reasons
     assert "Requer revisão técnica (consultor humano)" not in without.score_reasons

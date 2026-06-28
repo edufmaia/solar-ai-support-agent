@@ -47,6 +47,4 @@ class ChatwootConversationMap:
 
 def build_chatwoot_conversation_map() -> ChatwootConversationMap:
     settings = get_settings()
-    return ChatwootConversationMap(
-        get_redis_client(), settings.chatwoot_conversation_ttl_seconds
-    )
+    return ChatwootConversationMap(get_redis_client(), settings.chatwoot_conversation_ttl_seconds)

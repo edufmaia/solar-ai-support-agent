@@ -2,7 +2,6 @@ from decimal import Decimal
 
 import httpx
 import pytest
-
 from app.config.settings import Settings
 from app.solar.overpass_client import OverpassClient, OverpassError
 

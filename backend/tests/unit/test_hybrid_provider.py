@@ -1,4 +1,3 @@
-from decimal import Decimal
 from uuid import uuid4
 
 from app.llm.hybrid_provider import HybridLLMProvider
@@ -78,6 +77,8 @@ def test_real_provider_is_lazy():
     assert built["n"] == 0
     # a real turn triggers construction once
     hybrid.generate_response(
-        _request(lead_data={"city": "Natal", "average_energy_bill": "800", "address": "R"}, lead_score=72)
+        _request(
+            lead_data={"city": "Natal", "average_energy_bill": "800", "address": "R"}, lead_score=72
+        )
     )
     assert built["n"] == 1

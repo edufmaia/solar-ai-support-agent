@@ -138,9 +138,7 @@ class MockLLMProvider(BaseLLMProvider):
             ask = "qual é o seu telefone (ou WhatsApp)?"
         else:
             ask = "qual é o seu nome e telefone (ou WhatsApp)?"
-        content = (
-            f"{estimate} Para um especialista preparar sua proposta e te retornar, {ask}"
-        )
+        content = f"{estimate} Para um especialista preparar sua proposta e te retornar, {ask}"
         return content, "awaiting_contact"
 
     @staticmethod

@@ -17,6 +17,4 @@ class AdminService:
         offset = max(0, int(offset))
         items = self.conversation_repository.list_with_lead(limit, offset)
         total = self.conversation_repository.count_all()
-        return ConversationListResponse(
-            items=items, total=total, limit=limit, offset=offset
-        )
+        return ConversationListResponse(items=items, total=total, limit=limit, offset=offset)

@@ -43,7 +43,9 @@ def test_geocode_tool_geocodes_and_persists():
     conversation_id = uuid4()
 
     out = tool.execute(
-        GeocodeAddressInput(lead_id=lead_id, conversation_id=conversation_id, address="Rua das Flores, 123")
+        GeocodeAddressInput(
+            lead_id=lead_id, conversation_id=conversation_id, address="Rua das Flores, 123"
+        )
     )
 
     assert out == "saved-analysis"

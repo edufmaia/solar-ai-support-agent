@@ -17,8 +17,9 @@ class _FailProvider:
 
 def test_uses_provider_result_on_success():
     ext = LLMLeadExtractor(provider=_OkProvider())
-    result = ext.extract("Eduardo Freire Maia",
-                         history=[{"role": "assistant", "content": "Qual seu nome?"}])
+    result = ext.extract(
+        "Eduardo Freire Maia", history=[{"role": "assistant", "content": "Qual seu nome?"}]
+    )
     assert result.name == "Eduardo Freire Maia"
     assert ext.last_fallback_reason is None
 
@@ -36,6 +37,7 @@ def test_is_a_lead_extractor():
 
 def test_build_lead_extractor_regex_only_when_disabled():
     from app.config.settings import Settings
+
     ext = build_lead_extractor(Settings(lead_extraction_provider="regex"))
     assert isinstance(ext, LLMLeadExtractor)
     # provider disabled -> always regex, no failure reason recorded
