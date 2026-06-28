@@ -5,6 +5,7 @@ from app.services.document_ingestion_service import (
     DocumentParseError,
     chunk_text,
     extract_text,
+    ingest,
 )
 
 
@@ -62,3 +63,38 @@ def test_extract_pdf_uses_pypdf(monkeypatch):
     monkeypatch.setattr("app.services.document_ingestion_service.PdfReader", _FakeReader)
     out = extract_text("precos.pdf", b"%PDF-fake")
     assert "preços" in out.lower()
+
+
+def test_ingest_pasted_text():
+    chunks, result = ingest(
+        title="Política",
+        category="comercial",
+        source="texto colado",
+        pasted_text="A garantia dos painéis é de 25 anos.",
+    )
+    assert chunks and "garantia" in chunks[0].lower()
+    assert result.chunk_count == len(chunks)
+    assert result.source == "texto colado"
+
+
+def test_ingest_file_bytes_txt():
+    chunks, result = ingest(
+        title="Notas",
+        category=None,
+        source="notas.txt",
+        file_bytes=b"financiamento em 60x",
+        filename="notas.txt",
+    )
+    assert result.chunk_count == 1
+    assert "financiamento" in chunks[0].lower()
+
+
+def test_ingest_rejects_oversized_file():
+    big = b"a" * (10 * 1024 * 1024 + 1)
+    with pytest.raises(DocumentParseError):
+        ingest(title="X", category=None, source="big.txt", file_bytes=big, filename="big.txt")
+
+
+def test_ingest_requires_content():
+    with pytest.raises(DocumentParseError):
+        ingest(title="X", category=None, source=None, pasted_text="   ")

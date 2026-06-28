@@ -10,6 +10,7 @@ Agente de IA para atendimento inicial, qualificação de leads e pré-análise g
 - [Arquitetura](#arquitetura) · [Stack](#stack) · [Estrutura principal](#estrutura-principal)
 - [Configuração de ambiente](#configuração-de-ambiente) · [Como subir o projeto](#como-subir-o-projeto) · [Endpoints](#endpoints)
 - [Interface web](#interface-web): [chat do cliente](#chat-do-cliente--httplocalhost8010ui) · [painel admin](#painel-interno-admin--httplocalhost8010uiadmin) · [widget embutível](#widget-embutível--uma-linha-de-script)
+- [Instruções e base de conhecimento](#instruções-e-base-de-conhecimento)
 - Validação: [API](#como-validar-a-api) · [chat mock](#como-validar-o-chat-em-modo-mock) · [OpenAI](#como-validar-o-chat-em-modo-openai) · [Claude](#como-validar-o-chat-em-modo-claude) · [leads/conversas](#como-validar-leads-e-conversas) · [eventos](#como-validar-eventos-do-agente) · [custo/tokens](#como-validar-o-custo-estimado-da-openai) · [métricas](#como-validar-as-métricas-do-agente) · [Chatwoot](#como-validar-o-webhook-do-chatwoot)
 - [Geocoding & solar](#geocoding) · [Testes & CI](#testes) · [Decisões técnicas](#decisões-técnicas) · [Roadmap](#roadmap)
 
@@ -81,6 +82,7 @@ O projeto já possui:
 - sessão de conversa efêmera em Redis (cache com TTL; Postgres continua a fonte da verdade) com recuperação por turno e degradação graciosa
 - webhook do Chatwoot (`POST /webhooks/chatwoot`): recebe mensagens `incoming`, processa pelo agente e responde via API do Chatwoot
 - chat do cliente em `/ui` (white-label) e **painel interno com login** em `/ui/admin/` (dashboard + conversas + detalhe, só-leitura); `/metrics` e `/conversations/{id}` ficam protegidos por auth admin
+- **instruções customizáveis + base de conhecimento** no painel admin: a empresa reescreve o prompt do agente e anexa PDF/DOCX/TXT/MD (ou cola texto) que viram referência via full-text search (RAG) nas respostas dos LLMs reais
 
 ## Stack
 
@@ -561,6 +563,10 @@ Após o geocoding, quando há coordenadas, o agente estima o potencial solar pre
 | `GET` | `/admin/metrics` | Métricas para o painel (reusa `MetricsService`) — exige login |
 | `GET` | `/admin/conversations` | Lista de conversas com join do lead (`?limit&offset`) — exige login |
 | `GET` | `/admin/conversations/{id}` | Detalhe consolidado para o painel — exige login |
+| `GET` `PUT` | `/admin/agent-settings` | Lê / salva as instruções do agente + flag de RAG — exige login |
+| `POST` | `/admin/agent-settings/reset` | Restaura as instruções padrão — exige login |
+| `GET` `POST` | `/admin/knowledge` | Lista / adiciona documentos (arquivo ou texto) — exige login |
+| `PATCH` `DELETE` | `/admin/knowledge/{group_id}` | Ativa-desativa / remove um documento — exige login |
 | `GET` | `/ui/` | Chat do cliente final (white-label, SPA estática) |
 | `GET` | `/ui/admin/` | Painel interno da equipe (login + dashboard + conversas, só-leitura) |
 | `GET` | `/ui/branding.json` | Configuração de marca do chat (editável) |
@@ -620,6 +626,17 @@ Isso injeta um **botão flutuante** (canto inferior direito); ao clicar, abre o 
 - `data-teaser` é **opcional**: ausente → texto padrão; `data-teaser="off"` desliga o balão-convite; o balão aparece uma vez por visitante (`localStorage`).
 - Posição fixa no canto inferior direito.
 - Demonstração pronta em **`http://localhost:8010/ui/embed-demo.html`** (uma página fictícia de empresa com o widget embutido).
+
+## Instruções e base de conhecimento
+
+Pelo **painel admin** (`/ui/admin/`), a empresa personaliza o agente **sem editar código** — duas abas novas:
+
+- **Instruções:** reescreva o prompt de sistema do agente. O editor vem pré-carregado com o prompt padrão; ao salvar, ele **substitui** o padrão por inteiro (há "Restaurar padrão" para voltar). Persistido na tabela singleton `agent_settings`.
+- **Conhecimento:** anexe documentos (**PDF, DOCX, TXT, MD** ou **cole texto**). Cada documento é extraído, normalizado e quebrado em **trechos (chunks)** salvos em `knowledge_documents`. A cada resposta, o agente busca os trechos mais relevantes para a mensagem do cliente via **full-text search do PostgreSQL** (`tsvector`/`ts_rank`, índice GIN — sem embeddings nem serviço externo) e os injeta no prompt como **material de referência delimitado** (mitiga prompt injection), citando a fonte.
+
+Parâmetros (env, com defaults): `KNOWLEDGE_TOP_K=4`, `KNOWLEDGE_MIN_RANK=0.01`, `KNOWLEDGE_CHUNK_SIZE=800`, `KNOWLEDGE_CHUNK_OVERLAP=100`, `KNOWLEDGE_MAX_CHUNKS=400`, `KNOWLEDGE_MAX_FILE_MB=10`.
+
+> **Ressalva — modo mock:** as respostas em modo `mock` são roteadas por regra e **não usam prompt/LLM**, então instruções customizadas e base de conhecimento **só afetam os modos `openai`/`claude`/`hybrid`**. Os dados são salvos do mesmo jeito; o efeito aparece com um LLM real. O custo dos trechos injetados entra na contagem de tokens por turno (visível no dashboard).
 
 ## Testes
 
