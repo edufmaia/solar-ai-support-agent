@@ -17,7 +17,7 @@ jobs:
           cache: pip
           cache-dependency-path: backend/requirements.txt
       - name: Install dependencies
-        run: pip install -r backend/requirements.txt
+        run: pip install -r backend/requirements-dev.txt
       - name: Run unit tests
         working-directory: backend
         run: python -m pytest tests/unit -q
@@ -60,7 +60,7 @@ jobs:
           cache: pip
           cache-dependency-path: backend/requirements.txt
       - name: Install dependencies
-        run: pip install -r backend/requirements.txt
+        run: pip install -r backend/requirements-dev.txt
       - name: Apply database schema
         run: python database/apply_schema.py
       - name: Run integration tests
