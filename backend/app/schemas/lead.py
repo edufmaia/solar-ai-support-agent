@@ -5,7 +5,6 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict
 
-
 LeadTemperature = Literal["cold", "warm", "hot"]
 
 

@@ -2,7 +2,6 @@ from decimal import Decimal
 
 import httpx
 import pytest
-
 from app.config.settings import Settings
 from app.geocoding.base import GeocodingProviderInvocationError
 from app.geocoding.nominatim_provider import NominatimGeocodingProvider
@@ -64,7 +63,12 @@ def test_nominatim_high_confidence_with_house_number():
 
 def test_nominatim_medium_confidence_with_road_only():
     payload = [
-        {"lat": "-5.79", "lon": "-35.21", "display_name": "Rua das Flores", "address": {"road": "Rua das Flores"}}
+        {
+            "lat": "-5.79",
+            "lon": "-35.21",
+            "display_name": "Rua das Flores",
+            "address": {"road": "Rua das Flores"},
+        }
     ]
     provider = NominatimGeocodingProvider(settings=_settings(), client=_FakeClient(payload))
 

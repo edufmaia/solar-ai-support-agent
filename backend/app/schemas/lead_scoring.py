@@ -3,7 +3,6 @@ from typing import Literal
 
 from pydantic import BaseModel
 
-
 LeadIntent = Literal["solar_quote", "solar_interest", "general_question"]
 PropertyType = Literal["residential", "commercial"]
 LeadTemperature = Literal["cold", "warm", "hot"]

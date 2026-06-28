@@ -8,8 +8,8 @@ the lead/conversation it creates. Run inside the backend container:
     docker compose -p solar-ai-support-agent exec backend python tests/agent_turn_event_test.py
 """
 
-from pathlib import Path
 import sys
+from pathlib import Path
 from uuid import UUID
 
 from sqlalchemy import text

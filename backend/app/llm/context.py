@@ -23,9 +23,7 @@ def geospatial_prompt_section(geospatial: dict[str, Any] | None) -> str:
         panel_min = solar.get("estimated_panel_min")
         panel_max = solar.get("estimated_panel_max")
         if panel_min and panel_max:
-            lines.append(
-                f"  - Estimativa preliminar de placas: entre {panel_min} e {panel_max}"
-            )
+            lines.append(f"  - Estimativa preliminar de placas: entre {panel_min} e {panel_max}")
         if solar.get("estimated_system_kwp"):
             lines.append(
                 f"  - Potência estimada do sistema: aproximadamente {solar['estimated_system_kwp']} kWp"

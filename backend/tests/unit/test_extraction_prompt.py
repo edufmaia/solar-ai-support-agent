@@ -1,5 +1,4 @@
 import pytest
-
 from app.llm.extraction.prompt import (
     LEAD_FIELDS_JSON_SCHEMA,
     LEAD_FIELDS_TOOL,

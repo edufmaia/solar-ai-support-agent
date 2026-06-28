@@ -1,0 +1,30 @@
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+src = ["app", "tests"]
+
+[tool.ruff.lint]
+# E/F = pyflakes+pycodestyle, I = isort, UP = pyupgrade, B = bugbear
+select = ["E", "F", "I", "UP", "B"]
+# `ruff format` owns line length; E501 only fires on unsplittable string
+# literals/comments (e.g. pt-BR agent responses), so leave it to the formatter.
+ignore = ["E501"]
+
+[tool.ruff.lint.flake8-bugbear]
+# FastAPI dependency-injection callables are the idiomatic exception to B008
+# (function calls in argument defaults).
+extend-immutable-calls = [
+    "fastapi.Depends",
+    "fastapi.Query",
+    "fastapi.Path",
+    "fastapi.Body",
+    "fastapi.Form",
+    "fastapi.File",
+    "fastapi.Header",
+    "fastapi.Cookie",
+    "fastapi.Security",
+]
+
+[tool.ruff.lint.per-file-ignores]
+# Tests may use assert-style and longer expressions freely
+"tests/**" = ["B011"]

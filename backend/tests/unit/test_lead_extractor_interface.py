@@ -1,5 +1,4 @@
 import pytest
-
 from app.schemas.lead_extraction import LeadExtractionResult
 from app.services.lead_extraction_service import LeadExtractionService
 from app.services.lead_extractor import LeadExtractor

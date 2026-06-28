@@ -1,7 +1,6 @@
 from decimal import Decimal
 
 import pytest
-
 from app.geocoding.base import BaseGeocodingProvider
 from app.geocoding.mock_provider import MockGeocodingProvider
 

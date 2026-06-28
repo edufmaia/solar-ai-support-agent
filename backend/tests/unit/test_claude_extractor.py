@@ -1,5 +1,4 @@
 import pytest
-
 from app.config.settings import Settings
 from app.llm.base import LLMProviderConfigurationError, LLMProviderInvocationError
 from app.llm.extraction.claude_extractor import ClaudeFieldExtractor
@@ -39,13 +38,26 @@ def _settings(**kw):
 
 
 def test_extracts_fields_from_tool_use():
-    msg = _FakeMessage([_FakeToolUse({"name": "Eduardo Freire Maia", "email": "a@b.com",
-                                      "intent": "solar_interest", "has_solar_interest": True,
-                                      "wants_human": False, "geo_consent": False})])
+    msg = _FakeMessage(
+        [
+            _FakeToolUse(
+                {
+                    "name": "Eduardo Freire Maia",
+                    "email": "a@b.com",
+                    "intent": "solar_interest",
+                    "has_solar_interest": True,
+                    "wants_human": False,
+                    "geo_consent": False,
+                }
+            )
+        ]
+    )
     extractor = ClaudeFieldExtractor(settings=_settings(), client=_FakeClient(msg))
     result = extractor.extract_fields(
-        history=[{"role": "assistant", "content": "Qual seu e-mail?"},
-                 {"role": "user", "content": "contato.eduardofmaia@gmail.com"}],
+        history=[
+            {"role": "assistant", "content": "Qual seu e-mail?"},
+            {"role": "user", "content": "contato.eduardofmaia@gmail.com"},
+        ],
         known_lead=None,
     )
     assert result.name == "Eduardo Freire Maia"
@@ -57,7 +69,10 @@ def test_no_tool_use_block_raises():
     class _Text:
         type = "text"
         text = "oi"
-    extractor = ClaudeFieldExtractor(settings=_settings(), client=_FakeClient(_FakeMessage([_Text()])))
+
+    extractor = ClaudeFieldExtractor(
+        settings=_settings(), client=_FakeClient(_FakeMessage([_Text()]))
+    )
     with pytest.raises(LLMProviderInvocationError):
         extractor.extract_fields(history=[], known_lead=None)
 

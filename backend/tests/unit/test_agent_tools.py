@@ -64,7 +64,9 @@ def test_save_lead_tool_creates_lead_from_input():
     repo = _FakeLeadRepository()
     tool = SaveLeadTool(repo)
 
-    out = tool.execute(SaveLeadInput(name="Maria", city="Natal", average_energy_bill=Decimal("650")))
+    out = tool.execute(
+        SaveLeadInput(name="Maria", city="Natal", average_energy_bill=Decimal("650"))
+    )
 
     assert out == "created-lead"
     assert isinstance(repo.created, LeadCreate)

@@ -45,9 +45,7 @@ class ClaudeFieldExtractor(BaseLeadFieldExtractor):
                 messages=[{"role": "user", "content": user_content}],
             )
         except APIError as exc:
-            raise LLMProviderInvocationError(
-                f"Anthropic extraction request failed: {exc}"
-            ) from exc
+            raise LLMProviderInvocationError(f"Anthropic extraction request failed: {exc}") from exc
 
         for block in getattr(message, "content", None) or []:
             if getattr(block, "type", None) == "tool_use":

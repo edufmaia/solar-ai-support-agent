@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from decimal import Decimal
 from uuid import uuid4
 
@@ -10,7 +10,7 @@ from app.services.conversation_detail_service import ConversationDetailService
 
 
 def _now():
-    return datetime(2026, 6, 20, tzinfo=timezone.utc)
+    return datetime(2026, 6, 20, tzinfo=UTC)
 
 
 class _ConvRepo:
@@ -77,17 +77,33 @@ def test_builds_full_detail():
     lead_id = uuid4()
     conv = _conversation(lead_id)
     lead = LeadRead(
-        id=lead_id, name="Ana", city="Natal", average_energy_bill=Decimal("600"),
-        lead_score=80, lead_temperature="hot", created_at=_now(), updated_at=_now(),
+        id=lead_id,
+        name="Ana",
+        city="Natal",
+        average_energy_bill=Decimal("600"),
+        lead_score=80,
+        lead_temperature="hot",
+        created_at=_now(),
+        updated_at=_now(),
     )
     geo = GeospatialAnalysisRead(
-        id=uuid4(), lead_id=lead_id, solar_data_available=True,
-        estimated_panel_min=6, estimated_panel_max=8, estimated_system_kwp=Decimal("3.64"),
-        confidence_level="medium", requires_technical_review=False, created_at=_now(),
+        id=uuid4(),
+        lead_id=lead_id,
+        solar_data_available=True,
+        estimated_panel_min=6,
+        estimated_panel_max=8,
+        estimated_system_kwp=Decimal("3.64"),
+        confidence_level="medium",
+        requires_technical_review=False,
+        created_at=_now(),
     )
     event = AgentEventRead(
-        id=uuid4(), conversation_id=conv.id, event_type="human_handoff_requested",
-        event_source="mock_agent_orchestrator", payload={"reason": "hot_lead"}, created_at=_now(),
+        id=uuid4(),
+        conversation_id=conv.id,
+        event_type="human_handoff_requested",
+        event_source="mock_agent_orchestrator",
+        payload={"reason": "hot_lead"},
+        created_at=_now(),
     )
 
     detail = _service(conv, lead=lead, geo=geo, events=[event]).build(conv.id)

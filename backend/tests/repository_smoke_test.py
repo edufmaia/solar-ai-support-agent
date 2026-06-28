@@ -1,15 +1,20 @@
+import sys
+import uuid
 from decimal import Decimal
 from pathlib import Path
-import sys
 from uuid import UUID
-import uuid
 
 from sqlalchemy import text
 
 sys.path.append(str(Path(__file__).resolve().parents[1]))
 
 from app.config.database import SessionLocal
-from app.repositories import ConversationRepository, GeospatialAnalysisRepository, LeadRepository, MessageRepository
+from app.repositories import (
+    ConversationRepository,
+    GeospatialAnalysisRepository,
+    LeadRepository,
+    MessageRepository,
+)
 from app.schemas import ConversationCreate, GeospatialAnalysisCreate, LeadCreate, MessageCreate
 from app.schemas.solar import SolarPotentialResult
 
@@ -158,6 +163,7 @@ def main() -> None:
                 estimated_cost=Decimal("0.000123"),
             )
         )
+        assert second_message.id is not None
 
         fetched_message = message_repository.get_by_id(first_message.id)
         assert fetched_message is not None

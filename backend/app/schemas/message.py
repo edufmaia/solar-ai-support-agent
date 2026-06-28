@@ -5,7 +5,6 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict
 
-
 MessageRole = Literal["user", "assistant", "system", "tool"]
 
 

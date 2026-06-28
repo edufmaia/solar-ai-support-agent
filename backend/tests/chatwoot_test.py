@@ -9,8 +9,8 @@ up Postgres rows and the Redis keys. Run inside the container:
     docker compose -p solar-ai-support-agent exec backend python tests/chatwoot_test.py
 """
 
-from pathlib import Path
 import sys
+from pathlib import Path
 from uuid import UUID
 
 from sqlalchemy import text

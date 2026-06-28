@@ -49,9 +49,7 @@ class OpenAIFieldExtractor(BaseLeadFieldExtractor):
                 },
             )
         except OpenAIError as exc:
-            raise LLMProviderInvocationError(
-                f"OpenAI extraction request failed: {exc}"
-            ) from exc
+            raise LLMProviderInvocationError(f"OpenAI extraction request failed: {exc}") from exc
 
         raw = getattr(response, "output_text", None)
         if not raw:
@@ -59,7 +57,9 @@ class OpenAIFieldExtractor(BaseLeadFieldExtractor):
         try:
             fields = json.loads(raw)
         except json.JSONDecodeError as exc:
-            raise LLMProviderInvocationError(f"OpenAI extraction returned invalid JSON: {exc}") from exc
+            raise LLMProviderInvocationError(
+                f"OpenAI extraction returned invalid JSON: {exc}"
+            ) from exc
         try:
             return result_from_fields(fields)
         except ValueError as exc:

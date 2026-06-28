@@ -1,7 +1,6 @@
 import json
 
 import pytest
-
 from app.config.settings import Settings
 from app.llm.base import LLMProviderConfigurationError, LLMProviderInvocationError
 from app.llm.extraction.openai_extractor import OpenAIFieldExtractor
@@ -34,13 +33,22 @@ def _settings(**kw):
 
 
 def test_extracts_name_and_email_from_history():
-    payload = json.dumps({"name": "Eduardo Freire Maia", "email": "a@b.com",
-                          "intent": "solar_interest", "has_solar_interest": True,
-                          "wants_human": False, "geo_consent": False})
+    payload = json.dumps(
+        {
+            "name": "Eduardo Freire Maia",
+            "email": "a@b.com",
+            "intent": "solar_interest",
+            "has_solar_interest": True,
+            "wants_human": False,
+            "geo_consent": False,
+        }
+    )
     extractor = OpenAIFieldExtractor(settings=_settings(), client=_FakeClient(payload))
     result = extractor.extract_fields(
-        history=[{"role": "assistant", "content": "Qual seu nome?"},
-                 {"role": "user", "content": "Eduardo Freire Maia"}],
+        history=[
+            {"role": "assistant", "content": "Qual seu nome?"},
+            {"role": "user", "content": "Eduardo Freire Maia"},
+        ],
         known_lead={"city": "Mossoró"},
     )
     assert result.name == "Eduardo Freire Maia"

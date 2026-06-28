@@ -1,11 +1,17 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from decimal import Decimal
 
 from sqlalchemy.orm import Session
 
 from ..geocoding import BaseGeocodingProvider, GeocodingProviderError, build_geocoding_provider
 from ..llm import BaseLLMProvider, build_llm_provider
-from ..repositories import AgentEventRepository, ConversationRepository, GeospatialAnalysisRepository, LeadRepository, MessageRepository
+from ..repositories import (
+    AgentEventRepository,
+    ConversationRepository,
+    GeospatialAnalysisRepository,
+    LeadRepository,
+    MessageRepository,
+)
 from ..schemas.agent_event import AgentEventCreate, AgentEventRead
 from ..schemas.chat import ChatRequest, ChatResponse
 from ..schemas.conversation import ConversationCreate, ConversationRead
@@ -13,6 +19,9 @@ from ..schemas.geospatial import GeospatialAnalysisRead
 from ..schemas.lead import LeadCreate, LeadRead
 from ..schemas.lead_extraction import LeadExtractionResult
 from ..schemas.lead_scoring import LeadScoringResult
+from ..schemas.llm import LLMRequest
+from ..schemas.message import MessageCreate
+from ..schemas.session import SessionState
 from ..schemas.tools import (
     ClassifyLeadInput,
     EstimateSolarPotentialInput,
@@ -21,16 +30,19 @@ from ..schemas.tools import (
     SaveLeadInput,
     UpdateLeadInput,
 )
-from ..solar import BaseSolarProvider, SolarProviderError, build_solar_provider
-from ..tools import ClassifyLeadTool, EstimateSolarPotentialTool, GeocodeAddressTool, RequestHumanHandoffTool, SaveLeadTool, UpdateLeadTool
-from ..schemas.llm import LLMRequest
-from ..schemas.message import MessageCreate
-from ..services.lead_extraction_service import LeadExtractionService
 from ..services.lead_extractor import LeadExtractor
-from ..services.llm_lead_extractor import build_lead_extractor
 from ..services.lead_scoring_service import LeadScoringService
+from ..services.llm_lead_extractor import build_lead_extractor
 from ..session import RedisSessionStore, SessionStoreError, build_session_store
-from ..schemas.session import SessionState
+from ..solar import BaseSolarProvider, SolarProviderError, build_solar_provider
+from ..tools import (
+    ClassifyLeadTool,
+    EstimateSolarPotentialTool,
+    GeocodeAddressTool,
+    RequestHumanHandoffTool,
+    SaveLeadTool,
+    UpdateLeadTool,
+)
 
 
 class ConversationNotFoundError(Exception):
@@ -126,7 +138,11 @@ class MockAgentOrchestrator:
         )
         self._maybe_emit_extraction_fallback(conversation)
         conversation = self._persist_extracted_lead_data(conversation, payload, extraction)
-        lead = self.lead_repository.get_by_id(conversation.lead_id) if conversation.lead_id is not None else None
+        lead = (
+            self.lead_repository.get_by_id(conversation.lead_id)
+            if conversation.lead_id is not None
+            else None
+        )
         scoring = self._score_lead(conversation, extraction, lead)
         if scoring is not None and lead is not None:
             updated_lead = self.lead_repository.get_by_id(lead.id)
@@ -146,7 +162,9 @@ class MockAgentOrchestrator:
             if updated_lead is not None:
                 lead = updated_lead
 
-        conversation = self._maybe_request_handoff(conversation, extraction, scoring, geospatial, lead)
+        conversation = self._maybe_request_handoff(
+            conversation, extraction, scoring, geospatial, lead
+        )
 
         llm_request = self._build_llm_request(
             conversation=conversation,
@@ -309,7 +327,7 @@ class MockAgentOrchestrator:
             lead_score=scoring.lead_score if scoring is not None else None,
             lead_temperature=scoring.lead_temperature if scoring is not None else None,
             turn_count=previous_turn_count + 1,
-            updated_at=datetime.now(timezone.utc),
+            updated_at=datetime.now(UTC),
         )
         try:
             self.session_store.save(state)
@@ -516,7 +534,7 @@ class MockAgentOrchestrator:
         self.lead_repository.update_score(
             lead.id, new_scoring.lead_score, new_scoring.lead_temperature
         )
-        geo_reasons = new_scoring.score_reasons[len(scoring.score_reasons):]
+        geo_reasons = new_scoring.score_reasons[len(scoring.score_reasons) :]
         self._record_event(
             AgentEventCreate(
                 conversation_id=conversation.id,

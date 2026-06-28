@@ -1,5 +1,4 @@
 import pytest
-
 from app.config.settings import Settings
 from app.solar.base import SolarProviderConfigurationError
 from app.solar.factory import build_solar_provider

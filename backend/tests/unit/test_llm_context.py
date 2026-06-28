@@ -22,10 +22,12 @@ def test_instructions_forbid_letter_placeholders():
 
 
 def test_messages_map_history_roles():
-    req = _req(history=[
-        {"role": "assistant", "content": "Qual seu nome?"},
-        {"role": "user", "content": "Eduardo Freire Maia"},
-    ])
+    req = _req(
+        history=[
+            {"role": "assistant", "content": "Qual seu nome?"},
+            {"role": "user", "content": "Eduardo Freire Maia"},
+        ]
+    )
     msgs = build_response_messages(req)
     assert msgs == [
         {"role": "assistant", "content": "Qual seu nome?"},

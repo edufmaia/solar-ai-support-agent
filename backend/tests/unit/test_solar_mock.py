@@ -1,7 +1,6 @@
 from decimal import Decimal
 
 import pytest
-
 from app.solar.base import BaseSolarProvider
 from app.solar.mock_provider import MockSolarProvider
 

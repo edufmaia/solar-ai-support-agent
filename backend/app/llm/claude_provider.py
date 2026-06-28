@@ -1,4 +1,4 @@
-from decimal import Decimal, ROUND_HALF_UP
+from decimal import ROUND_HALF_UP, Decimal
 from typing import Any
 
 from anthropic import Anthropic, APIError
@@ -6,7 +6,11 @@ from anthropic import Anthropic, APIError
 from ..config.settings import Settings, get_settings
 from ..schemas.llm import LLMRequest, LLMResponse
 from .base import BaseLLMProvider, LLMProviderConfigurationError, LLMProviderInvocationError
-from .context import build_response_context_block, build_response_instructions, build_response_messages
+from .context import (
+    build_response_context_block,
+    build_response_instructions,
+    build_response_messages,
+)
 
 
 class ClaudeProvider(BaseLLMProvider):

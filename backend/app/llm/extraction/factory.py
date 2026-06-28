@@ -14,7 +14,9 @@ def _resolve(settings: Settings) -> str:
     return settings.llm_provider.lower().strip()
 
 
-def build_lead_extraction_provider(settings: Settings | None = None) -> BaseLeadFieldExtractor | None:
+def build_lead_extraction_provider(
+    settings: Settings | None = None,
+) -> BaseLeadFieldExtractor | None:
     active = settings or get_settings()
     target = _resolve(active)
 
