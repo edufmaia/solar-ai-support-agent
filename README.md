@@ -6,14 +6,38 @@ Agente de IA para atendimento inicial, qualificação de leads e pré-análise g
 
 ## Demo
 
-![Demo do agente: qualificação de lead e pré-análise solar](docs/images/demo.gif)
+### Chat do cliente
 
-> Conversa capturada na interface (modo `mock`): o agente coleta cidade e valor da
-> conta, avança para a pré-análise solar e encaminha o lead para um especialista.
+![Chat: qualificação de lead e pré-análise solar](docs/images/demo.gif)
+
+> O cliente conversa em linguagem natural; o agente coleta cidade, valor da conta e
+> endereço, dispara a pré-análise solar e encaminha o lead para um especialista.
+
+### Painel interno & análise geoespacial
+
+![Painel admin: dashboard, conversa e análise geoespacial com vista de satélite](docs/images/admin.gif)
+
+> **O diferencial:** a partir do endereço, o agente geocodifica (OpenStreetMap),
+> estima a área útil do telhado por _footprint_ (Overpass) e calcula a faixa de placas
+> e a potência — tudo consolidado no painel, com **vista de satélite** do imóvel e os
+> dados do lead (score, temperatura, contato, transcrição).
+
+### Configuração: instruções + base de conhecimento
+
+![Admin: editar instruções do agente e subir base de conhecimento](docs/images/knowledge.gif)
+
+> As instruções (system prompt) são editáveis pela equipe e a base de conhecimento
+> (RAG) alimenta as respostas nos modos OpenAI/Claude.
+
+### Widget embutível
+
+![Widget de chat embutido em um site externo](docs/images/widget.gif)
+
+> Uma linha de `<script>` adiciona o chat a qualquer site, com teaser e iframe isolado.
 
 ## Índice
 
-- [Demo](#demo) · [Quickstart](#quickstart) · [Telas](#telas) · [Status atual](#status-atual)
+- [Demo](#demo) · [Quickstart](#quickstart) · [Status atual](#status-atual)
 - [Arquitetura](#arquitetura) · [Stack](#stack) · [Estrutura principal](#estrutura-principal)
 - [Configuração de ambiente](#configuração-de-ambiente) · [Como subir o projeto](#como-subir-o-projeto) · [Endpoints](#endpoints)
 - [Interface web](#interface-web): [chat do cliente](#chat-do-cliente--httplocalhost8010ui) · [painel admin](#painel-interno-admin--httplocalhost8010uiadmin) · [widget embutível](#widget-embutível--uma-linha-de-script)
@@ -51,15 +75,6 @@ docker compose up -d
 > O `docker-compose.yml` já fixa o project name (`solar-ai-support-agent`), então
 > não é preciso passar `-p`. Para parar: `docker compose down` (use `down -v` para
 > apagar os dados do banco).
-
-### Telas
-
-| Chat do cliente | Painel interno | Widget embutido |
-|---|---|---|
-| ![Chat do cliente](docs/images/chat.png) | ![Painel interno](docs/images/admin.png) | ![Widget embutido](docs/images/widget.png) |
-
-> As imagens acima são geradas localmente — veja [`docs/images/README.md`](docs/images/README.md)
-> para o que capturar e como.
 
 ## Status atual
 
