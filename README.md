@@ -4,9 +4,16 @@
 
 Agente de IA para atendimento inicial, qualificação de leads e pré-análise geoespacial para empresas de energia solar.
 
+## Demo
+
+![Demo do agente: qualificação de lead e pré-análise solar](docs/images/demo.gif)
+
+> Conversa capturada na interface (modo `mock`): o agente coleta cidade e valor da
+> conta, avança para a pré-análise solar e encaminha o lead para um especialista.
+
 ## Índice
 
-- [Quickstart](#quickstart) · [Telas](#telas) · [Status atual](#status-atual)
+- [Demo](#demo) · [Quickstart](#quickstart) · [Telas](#telas) · [Status atual](#status-atual)
 - [Arquitetura](#arquitetura) · [Stack](#stack) · [Estrutura principal](#estrutura-principal)
 - [Configuração de ambiente](#configuração-de-ambiente) · [Como subir o projeto](#como-subir-o-projeto) · [Endpoints](#endpoints)
 - [Interface web](#interface-web): [chat do cliente](#chat-do-cliente--httplocalhost8010ui) · [painel admin](#painel-interno-admin--httplocalhost8010uiadmin) · [widget embutível](#widget-embutível--uma-linha-de-script)
