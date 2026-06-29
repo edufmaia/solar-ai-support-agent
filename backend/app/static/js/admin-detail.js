@@ -31,29 +31,80 @@ function hhmm(iso) {
   }
 }
 
+const SAT_D = 0.0016; // half-size of the satellite bbox, in degrees
+const SAT_W = 672;
+const SAT_H = 400;
+
 function satelliteUrl(lat, lon) {
-  const d = 0.0016;
   const la = Number(lat);
   const lo = Number(lon);
   if (isNaN(la) || isNaN(lo)) return null;
-  const bbox = `${lo - d},${la - d},${lo + d},${la + d}`;
+  const bbox = `${lo - SAT_D},${la - SAT_D},${lo + SAT_D},${la + SAT_D}`;
   return (
     "https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/export" +
-    `?bbox=${bbox}&bboxSR=4326&imageSR=4326&size=672,400&format=jpg&f=image`
+    `?bbox=${bbox}&bboxSR=4326&imageSR=4326&size=${SAT_W},${SAT_H}&format=jpg&f=image`
   );
 }
 
-function satelliteImage(lat, lon) {
+// Project a (lat, lon) point to pixel coordinates within the satellite raster,
+// using the exact same bbox/size the export endpoint was called with — so the
+// overlay aligns with the image regardless of how it is scaled for display.
+function projectPoint(latC, lonC, plat, plon) {
+  const x = ((plon - (lonC - SAT_D)) / (2 * SAT_D)) * SAT_W;
+  const y = ((latC + SAT_D - plat) / (2 * SAT_D)) * SAT_H;
+  return [x, y];
+}
+
+function roofOverlay(latC, lonC, polygon) {
+  let shapes = "";
+  let mx = SAT_W / 2;
+  let my = SAT_H / 2;
+  if (Array.isArray(polygon) && polygon.length >= 3) {
+    const pts = polygon.map(([la, lo]) => projectPoint(latC, lonC, la, lo));
+    const points = pts.map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`).join(" ");
+    shapes += `<polygon class="roof-poly" points="${points}" />`;
+    mx = pts.reduce((s, p) => s + p[0], 0) / pts.length;
+    my = pts.reduce((s, p) => s + p[1], 0) / pts.length;
+  }
+  shapes +=
+    `<g class="roof-pin" transform="translate(${mx.toFixed(1)},${my.toFixed(1)})">` +
+    '<circle class="roof-pin-halo" r="9" />' +
+    '<circle class="roof-pin-dot" r="3.5" />' +
+    "</g>";
+  return (
+    `<svg class="map-overlay" viewBox="0 0 ${SAT_W} ${SAT_H}" ` +
+    `preserveAspectRatio="none" aria-hidden="true">${shapes}</svg>`
+  );
+}
+
+function mapMarkup(lat, lon, polygon, large) {
   const url = satelliteUrl(lat, lon);
   if (!url) return "";
+  const overlay = roofOverlay(Number(lat), Number(lon), polygon);
+  const tag = (Array.isArray(polygon) && polygon.length >= 3)
+    ? '<span class="map-tag">contorno do telhado analisado · estimativa</span>'
+    : '<span class="map-tag">local aproximado do endereço</span>';
+  const polyAttr = polygon
+    ? ` data-poly="${encodeURIComponent(JSON.stringify(polygon))}"`
+    : "";
+  const zoomAttr = large ? "" : ' data-zoom="1"';
+  const wrapCls = large ? "map-wrap map-wrap-large" : "map-wrap";
   return (
-    '<div class="map-wrap">' +
+    `<div class="${wrapCls}">` +
     `<img class="map-thumb" src="${url}" alt="Vista de satélite do endereço" loading="lazy" ` +
-    `data-full="${url}" ` +
+    `data-lat="${lat}" data-lon="${lon}"${polyAttr}${zoomAttr} ` +
     "onerror=\"this.closest('.map-wrap').style.display='none'\"/>" +
-    '<span class="map-tag">vista de satélite (clique para ampliar)</span>' +
+    overlay +
+    (large ? "" : `<span class="map-tag">vista de satélite · clique para ampliar</span>`) +
+    (large ? tag : "") +
     "</div>"
   );
+}
+
+function satelliteImage(geo) {
+  if (!(geo.latitude && geo.longitude)) return "";
+  const polygon = ((geo.raw_response || {}).solar || {}).roof_polygon || null;
+  return mapMarkup(geo.latitude, geo.longitude, polygon, false);
 }
 
 function convBlock(c) {
@@ -92,7 +143,7 @@ function leadBlock(lead) {
 function solarBlock(geo) {
   if (!geo) return '<div class="detail-section"><h3>Análise solar</h3><span class="muted">Não realizada.</span></div>';
   let html = '<div class="detail-section"><h3>Análise solar</h3>';
-  if (geo.latitude && geo.longitude) html += satelliteImage(geo.latitude, geo.longitude);
+  html += satelliteImage(geo);
   html +=
     row("Endereço", geo.formatted_address ? escapeHtml(geo.formatted_address) : null) +
     row("Confiança do endereço", geo.address_confidence) +
@@ -139,22 +190,28 @@ export function renderDetail(container, detail) {
     solarBlock(detail.geospatial) +
     transcriptBlock(detail.messages);
 
-  container.querySelectorAll(".map-thumb").forEach((img) =>
-    img.addEventListener("click", () => openLightbox(img.getAttribute("data-full")))
+  container.querySelectorAll(".map-thumb[data-zoom]").forEach((img) =>
+    img.addEventListener("click", () => {
+      const polyAttr = img.getAttribute("data-poly");
+      const polygon = polyAttr ? JSON.parse(decodeURIComponent(polyAttr)) : null;
+      openLightbox(img.getAttribute("data-lat"), img.getAttribute("data-lon"), polygon);
+    })
   );
 }
 
-function openLightbox(url) {
+function openLightbox(lat, lon, polygon) {
   const box = document.getElementById("lightbox");
-  const img = document.getElementById("lightbox-img");
-  if (!box || !img || !url) return;
-  img.src = url;
+  const stage = document.getElementById("lightbox-stage");
+  if (!box || !stage || !lat || !lon) return;
+  stage.innerHTML = mapMarkup(lat, lon, polygon, true);
   box.classList.remove("hidden");
 }
 
 function closeLightbox() {
   const box = document.getElementById("lightbox");
+  const stage = document.getElementById("lightbox-stage");
   if (box) box.classList.add("hidden");
+  if (stage) stage.innerHTML = "";
 }
 
 (function initLightbox() {

@@ -1,5 +1,6 @@
 from decimal import ROUND_HALF_UP, Decimal
 from math import floor
+from typing import Any
 
 from ..config.settings import Settings, get_settings
 from ..schemas.solar import SolarConfidence, SolarPotentialResult
@@ -21,14 +22,20 @@ class FootprintSolarProvider(BaseSolarProvider):
         self.settings = settings or get_settings()
         self.overpass_client = overpass_client or OverpassClient(self.settings)
 
-    def _roof_panels(self, latitude, longitude) -> tuple[int | None, float | None, float | None]:
-        """Returns (panels, footprint_area_m2, usable_area_m2) or (None, None, None)."""
+    def _roof_panels(
+        self, latitude, longitude
+    ) -> tuple[int | None, float | None, float | None, list | None]:
+        """Returns (panels, footprint_area_m2, usable_area_m2, chosen_polygon).
+
+        ``chosen_polygon`` is the building ring used for the estimate (a list of
+        ``(lat, lon)`` points), or ``None`` when no building was found.
+        """
         try:
             polygons = self.overpass_client.buildings_around(latitude, longitude)
         except OverpassError:
-            return None, None, None
+            return None, None, None, None
         if not polygons:
-            return None, None, None
+            return None, None, None, None
 
         point = (float(latitude), float(longitude))
         chosen = next((p for p in polygons if point_in_polygon(point, p)), None)
@@ -39,8 +46,8 @@ class FootprintSolarProvider(BaseSolarProvider):
         usable = area * self.settings.roof_usable_factor
         panels = floor(usable / self.settings.panel_area_m2)
         if panels < 1:
-            return None, area, usable
-        return panels, area, usable
+            return None, area, usable, chosen
+        return panels, area, usable, chosen
 
     def estimate(self, latitude, longitude, average_energy_bill) -> SolarPotentialResult:
         if latitude is None or longitude is None:
@@ -52,7 +59,7 @@ class FootprintSolarProvider(BaseSolarProvider):
             )
 
         consumption = panels_from_bill(average_energy_bill)
-        roof_panels, area_m2, usable_m2 = self._roof_panels(latitude, longitude)
+        roof_panels, area_m2, usable_m2, roof_polygon = self._roof_panels(latitude, longitude)
 
         consumo_panels = consumption.panels if consumption is not None else None
 
@@ -77,7 +84,7 @@ class FootprintSolarProvider(BaseSolarProvider):
         estimated_kwp = kwp.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
         requires_review = estimated_kwp >= TECH_REVIEW_KWP_THRESHOLD or confidence == "low"
 
-        raw = {
+        raw: dict[str, Any] = {
             "provider": "footprint",
             "source": source,
             "panels_por_consumo": consumo_panels,
@@ -85,6 +92,8 @@ class FootprintSolarProvider(BaseSolarProvider):
             "area_footprint_m2": round(area_m2, 1) if area_m2 is not None else None,
             "area_util_m2": round(usable_m2, 1) if usable_m2 is not None else None,
         }
+        if roof_polygon is not None:
+            raw["roof_polygon"] = [[round(lat, 6), round(lon, 6)] for lat, lon in roof_polygon]
 
         return SolarPotentialResult(
             solar_data_available=True,

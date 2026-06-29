@@ -53,10 +53,18 @@ body { margin: 0; font-family: system-ui, sans-serif; background: #f3f4f6; color
 .events-list { list-style: none; padding: 0; margin: 0; }
 .events-list li { padding: .15rem 0; font-size: .85rem; color: #374151; }
 .events-list li.hl { font-weight: 600; color: #92400e; }
-.map-wrap { position: relative; margin-bottom: .75rem; }
+.map-wrap { position: relative; display: inline-block; line-height: 0; margin-bottom: .75rem; }
 .map-thumb { width: 100%; max-width: 336px; border-radius: 10px; display: block; }
 .map-tag { position: absolute; bottom: 6px; left: 8px; background: rgba(0,0,0,.6); color: #fff;
-  font-size: .7rem; padding: .1rem .4rem; border-radius: 6px; }
+  font-size: .7rem; padding: .1rem .4rem; border-radius: 6px; line-height: 1.2; }
+
+/* Roof footprint + property marker drawn over the satellite raster */
+.map-overlay { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+.roof-poly { fill: rgba(0, 224, 255, .22); stroke: #00e0ff; stroke-width: 2.5;
+  vector-effect: non-scaling-stroke; stroke-linejoin: round; }
+.roof-pin-halo { fill: rgba(245, 158, 11, .35); stroke: #fff; stroke-width: 1.5;
+  vector-effect: non-scaling-stroke; }
+.roof-pin-dot { fill: #f59e0b; stroke: #fff; stroke-width: 1; vector-effect: non-scaling-stroke; }
 
 /* Instructions + knowledge tabs */
 .field-label { display: block; font-size: .8rem; color: #6b7280; margin: .5rem 0 .25rem; }
@@ -84,6 +92,10 @@ body { margin: 0; font-family: system-ui, sans-serif; background: #f3f4f6; color
 .lightbox { position: fixed; inset: 0; background: rgba(0,0,0,.8); display: flex;
   align-items: center; justify-content: center; z-index: 1000; }
 .lightbox.hidden { display: none; }
-.lightbox-img { max-width: 92vw; max-height: 88vh; border-radius: 8px; }
+.lightbox-stage { position: relative; display: inline-block; line-height: 0; }
+.map-wrap-large { margin: 0; }
+.map-wrap-large .map-thumb { max-width: 92vw; max-height: 84vh; width: auto; cursor: default;
+  border-radius: 8px; }
+.map-wrap-large .map-tag { font-size: .8rem; bottom: 10px; left: 10px; }
 .lightbox-close { position: absolute; top: 1rem; right: 1.25rem; background: rgba(255,255,255,.9);
   border: none; border-radius: 999px; width: 2.2rem; height: 2.2rem; font-size: 1.1rem; cursor: pointer; }

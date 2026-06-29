@@ -79,3 +79,17 @@ def test_missing_coordinates_returns_no_data():
     result = _provider(polygons=[_square(20.0)]).estimate(None, None, Decimal("350"))
     assert result.solar_data_available is False
     assert result.confidence_level == "unknown"
+
+
+def test_raw_response_includes_chosen_roof_polygon():
+    square = _square(20.0)
+    result = _provider(polygons=[square]).estimate(
+        Decimal(str(LAT0)), Decimal(str(LON0)), Decimal("350")
+    )
+    expected = [[round(la, 6), round(lo, 6)] for la, lo in square]
+    assert result.raw_response["roof_polygon"] == expected
+
+
+def test_no_roof_polygon_when_no_building():
+    result = _provider(polygons=[]).estimate(Decimal(str(LAT0)), Decimal(str(LON0)), Decimal("350"))
+    assert result.raw_response.get("roof_polygon") is None
