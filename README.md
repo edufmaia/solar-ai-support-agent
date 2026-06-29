@@ -717,24 +717,21 @@ O GitHub Actions (`.github/workflows/ci.yml`) roda a cada push/PR:
 - **Pré-análise geoespacial, não vistoria:** geocoding + potencial solar produzem uma estimativa preliminar e disparam handoff por `technical_review` quando necessário.
 - **Português no domínio, inglês no código:** respostas do agente, prompts e termos de negócio em pt-BR; identificadores e comentários em inglês.
 
-## Demonstração
+## Guias
 
-> _Prints/GIF da API em ação (Swagger `/docs`, um `POST /chat` e o `GET /metrics`) podem ser adicionados aqui._ Veja o roteiro de demonstração em [`docs/demo-script.md`](docs/demo-script.md).
+- 📦 **[Guia de instalação no site da empresa](docs/INTEGRACAO-SITE.md)** — como hospedar a stack e embutir o chat em qualquer site com uma linha de `<script>`, incluindo HTTPS, variáveis de ambiente e segurança em produção.
+- 🎨 **[Guia de white-label](docs/WHITE-LABEL.md)** — como personalizar marca, cores, logo, mensagens e o comportamento do agente (sem editar código).
 
 ## Documentação disponível
 
-- `docs/specs/001-solar-ai-support-agent/requirements.md`
-- `docs/specs/001-solar-ai-support-agent/design.md`
-- `docs/specs/001-solar-ai-support-agent/agent-behavior.md`
-- `docs/specs/001-solar-ai-support-agent/geospatial-module.md`
-- `docs/specs/001-solar-ai-support-agent/data-model.md`
-- `docs/specs/001-solar-ai-support-agent/evaluation-plan.md`
-- `docs/specs/001-solar-ai-support-agent/test-plan.md`
-- `docs/specs/001-solar-ai-support-agent/tasks.md`
+- [`docs/architecture.md`](docs/architecture.md) — visão de arquitetura.
+- [`docs/glossary.md`](docs/glossary.md) — glossário de domínio.
+- [`docs/prompts.md`](docs/prompts.md) — prompts do agente.
+- [`docs/demo-script.md`](docs/demo-script.md) — roteiro de demonstração.
 
 ## Roadmap
 
-O núcleo (spec **001**) está **100% concluído** e o projeto evoluiu além dele com três iniciativas adicionais (distribuição, footprint solar e hardening). Detalhe das tarefas do núcleo em [`docs/specs/001-solar-ai-support-agent/tasks.md`](docs/specs/001-solar-ai-support-agent/tasks.md).
+O núcleo está **100% concluído** e o projeto evoluiu além dele com três iniciativas adicionais (distribuição, footprint solar e hardening).
 
 **Núcleo — spec 001 (agente, geoespacial, monitoramento, integrações):**
 

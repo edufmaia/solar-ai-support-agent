@@ -19,7 +19,6 @@ env/
 
 .idea/
 .vscode/
-.claude/settings.local.json
 
 dist/
 build/
