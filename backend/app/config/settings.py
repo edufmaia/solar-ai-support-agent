@@ -47,6 +47,10 @@ class Settings(BaseSettings):
     redis_url: str | None = None
     session_ttl_seconds: int = 3600
 
+    # Per-IP throttling of the public /chat endpoint (0 = disable a window).
+    chat_rate_limit_per_minute: int = 20
+    chat_rate_limit_per_day: int = 300
+
     chatwoot_base_url: str | None = None
     chatwoot_api_access_token: str | None = None
     chatwoot_timeout_seconds: float = 5.0

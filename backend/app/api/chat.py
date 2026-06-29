@@ -5,11 +5,16 @@ from ..agents.orchestrator import ConversationNotFoundError, MockAgentOrchestrat
 from ..config.database import get_db_session
 from ..llm import LLMProviderConfigurationError, LLMProviderInvocationError
 from ..schemas.chat import ChatRequest, ChatResponse
+from ..security.rate_limit import enforce_chat_rate_limit
 
 router = APIRouter(tags=["chat"])
 
 
-@router.post("/chat", response_model=ChatResponse)
+@router.post(
+    "/chat",
+    response_model=ChatResponse,
+    dependencies=[Depends(enforce_chat_rate_limit)],
+)
 def chat(payload: ChatRequest, session: Session = Depends(get_db_session)) -> ChatResponse:
     try:
         orchestrator = MockAgentOrchestrator(session)

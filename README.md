@@ -104,6 +104,7 @@ O projeto já possui:
 - sessão de conversa efêmera em Redis (cache com TTL; Postgres continua a fonte da verdade) com recuperação por turno e degradação graciosa
 - webhook do Chatwoot (`POST /webhooks/chatwoot`): recebe mensagens `incoming`, processa pelo agente e responde via API do Chatwoot
 - chat do cliente em `/ui` (white-label) e **painel interno com login** em `/ui/admin/` (dashboard + conversas + detalhe, só-leitura); `/metrics` e `/conversations/{id}` ficam protegidos por auth admin
+- **rate limit por IP no `/chat`** (`CHAT_RATE_LIMIT_PER_MINUTE`/`_PER_DAY`, via Redis) para conter abuso e gasto de LLM no endpoint público — veja o [guia de instalação](docs/INTEGRACAO-SITE.md)
 - **instruções customizáveis + base de conhecimento** no painel admin: a empresa reescreve o prompt do agente e anexa PDF/DOCX/TXT/MD (ou cola texto) que viram referência via full-text search (RAG) nas respostas dos LLMs reais
 
 ## Stack

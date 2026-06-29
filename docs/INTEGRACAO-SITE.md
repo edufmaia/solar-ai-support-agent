@@ -45,6 +45,7 @@ Edite o arquivo `.env` **antes** de expor o serviço. Os pontos críticos:
 | Variável | Para quê | Recomendação em produção |
 |---|---|---|
 | `ADMIN_PASSWORD` | Habilita e protege o painel `/ui/admin/` | Defina uma **senha forte**. Vazio = painel desabilitado. |
+| `CHAT_RATE_LIMIT_PER_MINUTE` / `CHAT_RATE_LIMIT_PER_DAY` | Limite de mensagens no `/chat` por IP | Padrão `20`/`300`. Protege contra abuso e gasto de LLM. `0` desliga a janela. |
 | `DATABASE_PASSWORD` | Senha do PostgreSQL | **Troque** o valor padrão (`solar_password`) por um segredo forte. |
 | `LLM_PROVIDER` | Motor de resposta (`mock` / `openai` / `claude` / `hybrid`) | `hybrid` equilibra custo e qualidade. |
 | `OPENAI_API_KEY` / `ANTHROPIC_API_KEY` | Credenciais do LLM | Necessárias se não usar `mock`. |
@@ -119,6 +120,8 @@ com a `ADMIN_PASSWORD` para ver a conversa, o lead e a pré-análise geoespacial
 
 - [ ] `ADMIN_PASSWORD` forte definida (e não compartilhada).
 - [ ] `DATABASE_PASSWORD` trocada do padrão.
+- [ ] **Rate limit do `/chat` ativo** (`CHAT_RATE_LIMIT_PER_MINUTE`/`_PER_DAY`) — essencial num piloto público com LLM real, para não estourar custo. Ajuste os limites ao seu tráfego esperado.
+- [ ] Reverse proxy repassando o IP real do cliente em **`X-Forwarded-For`** (senão todos contam como um só IP).
 - [ ] `.env` **fora** do controle de versão.
 - [ ] Serviço **somente via HTTPS** (reverse proxy com TLS).
 - [ ] Portas do banco/Redis **não** expostas publicamente (no `docker-compose.yml`
