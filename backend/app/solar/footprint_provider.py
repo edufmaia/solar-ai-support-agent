@@ -1,5 +1,5 @@
 from decimal import ROUND_HALF_UP, Decimal
-from math import floor
+from math import cos, floor, radians
 from typing import Any
 
 from ..config.settings import Settings, get_settings
@@ -11,7 +11,7 @@ from .consumption import (
     panels_from_bill,
     seed_panels,
 )
-from .geometry import point_in_polygon, polygon_area_m2
+from .geometry import point_in_polygon, polygon_area_m2, polygon_centroid
 from .overpass_client import OverpassClient, OverpassError
 
 
@@ -21,6 +21,16 @@ class FootprintSolarProvider(BaseSolarProvider):
     def __init__(self, settings: Settings | None = None, overpass_client=None) -> None:
         self.settings = settings or get_settings()
         self.overpass_client = overpass_client or OverpassClient(self.settings)
+
+    @staticmethod
+    def _distance_m2(point: tuple[float, float], polygon: list) -> float:
+        """Squared distance (in meters²) from a (lat, lon) point to a polygon's
+        centroid, used to rank candidate buildings by proximity."""
+        plat, plon = point
+        clat, clon = polygon_centroid(polygon)
+        dy = (clat - plat) * 111_320.0
+        dx = (clon - plon) * 111_320.0 * cos(radians(plat))
+        return dy * dy + dx * dx
 
     def _roof_panels(
         self, latitude, longitude
@@ -40,7 +50,10 @@ class FootprintSolarProvider(BaseSolarProvider):
         point = (float(latitude), float(longitude))
         chosen = next((p for p in polygons if point_in_polygon(point, p)), None)
         if chosen is None:
-            chosen = max(polygons, key=polygon_area_m2)
+            # No building contains the geocoded point (e.g. it resolved to the
+            # street). Pick the NEAREST building — more likely the actual address
+            # than the largest one nearby.
+            chosen = min(polygons, key=lambda p: self._distance_m2(point, p))
 
         area = polygon_area_m2(chosen)
         usable = area * self.settings.roof_usable_factor

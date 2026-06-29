@@ -31,15 +31,45 @@ function hhmm(iso) {
   }
 }
 
-const SAT_D = 0.0016; // half-size of the satellite bbox, in degrees
 const SAT_W = 672;
 const SAT_H = 400;
+const ASPECT = SAT_W / SAT_H; // 1.68 — keep the bbox in this ratio (no distortion)
+const M_PER_DEG = 111320; // meters per degree of latitude (approx.)
 
-function satelliteUrl(lat, lon) {
+// Build a north-up, undistorted satellite frame. With a roof polygon, frame it
+// tightly (house scale); otherwise show a ~100 m view around the address point.
+function satelliteFrame(lat, lon, polygon) {
   const la = Number(lat);
   const lo = Number(lon);
   if (isNaN(la) || isNaN(lo)) return null;
-  const bbox = `${lo - SAT_D},${la - SAT_D},${lo + SAT_D},${la + SAT_D}`;
+  let latC = la;
+  let lonC = lo;
+  let halfH = 90; // meters (default ~180 m tall view)
+  if (Array.isArray(polygon) && polygon.length >= 3) {
+    const lats = polygon.map((p) => p[0]);
+    const lons = polygon.map((p) => p[1]);
+    latC = (Math.min(...lats) + Math.max(...lats)) / 2;
+    lonC = (Math.min(...lons) + Math.max(...lons)) / 2;
+    const cosC = Math.cos((latC * Math.PI) / 180) || 1;
+    const roofHalfH = ((Math.max(...lats) - Math.min(...lats)) / 2) * M_PER_DEG;
+    const roofHalfW = ((Math.max(...lons) - Math.min(...lons)) / 2) * M_PER_DEG * cosC;
+    const MARGIN = 2.0;
+    // ArcGIS World Imagery export errors below ~120 m wide, so keep a safe floor.
+    const MIN_HALF_H = 70; // never tighter than a ~140 m tall view
+    halfH = Math.max(roofHalfH * MARGIN, (roofHalfW * MARGIN) / ASPECT, MIN_HALF_H);
+  }
+  const cosLat = Math.cos((latC * Math.PI) / 180) || 1;
+  return {
+    latC,
+    lonC,
+    dLat: halfH / M_PER_DEG,
+    dLon: (halfH * ASPECT) / (M_PER_DEG * cosLat),
+  };
+}
+
+function satelliteUrl(frame) {
+  const { latC, lonC, dLat, dLon } = frame;
+  const bbox = `${lonC - dLon},${latC - dLat},${lonC + dLon},${latC + dLat}`;
   return (
     "https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/export" +
     `?bbox=${bbox}&bboxSR=4326&imageSR=4326&size=${SAT_W},${SAT_H}&format=jpg&f=image`
@@ -49,18 +79,18 @@ function satelliteUrl(lat, lon) {
 // Project a (lat, lon) point to pixel coordinates within the satellite raster,
 // using the exact same bbox/size the export endpoint was called with — so the
 // overlay aligns with the image regardless of how it is scaled for display.
-function projectPoint(latC, lonC, plat, plon) {
-  const x = ((plon - (lonC - SAT_D)) / (2 * SAT_D)) * SAT_W;
-  const y = ((latC + SAT_D - plat) / (2 * SAT_D)) * SAT_H;
+function projectPoint(frame, plat, plon) {
+  const x = ((plon - (frame.lonC - frame.dLon)) / (2 * frame.dLon)) * SAT_W;
+  const y = ((frame.latC + frame.dLat - plat) / (2 * frame.dLat)) * SAT_H;
   return [x, y];
 }
 
-function roofOverlay(latC, lonC, polygon) {
+function roofOverlay(frame, polygon) {
   let shapes = "";
   let mx = SAT_W / 2;
   let my = SAT_H / 2;
   if (Array.isArray(polygon) && polygon.length >= 3) {
-    const pts = polygon.map(([la, lo]) => projectPoint(latC, lonC, la, lo));
+    const pts = polygon.map(([la, lo]) => projectPoint(frame, la, lo));
     const points = pts.map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`).join(" ");
     shapes += `<polygon class="roof-poly" points="${points}" />`;
     mx = pts.reduce((s, p) => s + p[0], 0) / pts.length;
@@ -78,9 +108,10 @@ function roofOverlay(latC, lonC, polygon) {
 }
 
 function mapMarkup(lat, lon, polygon, large) {
-  const url = satelliteUrl(lat, lon);
-  if (!url) return "";
-  const overlay = roofOverlay(Number(lat), Number(lon), polygon);
+  const frame = satelliteFrame(lat, lon, polygon);
+  if (!frame) return "";
+  const url = satelliteUrl(frame);
+  const overlay = roofOverlay(frame, polygon);
   const tag = (Array.isArray(polygon) && polygon.length >= 3)
     ? '<span class="map-tag">contorno do telhado analisado · estimativa</span>'
     : '<span class="map-tag">local aproximado do endereço</span>';

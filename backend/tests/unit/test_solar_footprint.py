@@ -93,3 +93,15 @@ def test_raw_response_includes_chosen_roof_polygon():
 def test_no_roof_polygon_when_no_building():
     result = _provider(polygons=[]).estimate(Decimal(str(LAT0)), Decimal(str(LON0)), Decimal("350"))
     assert result.raw_response.get("roof_polygon") is None
+
+
+def test_picks_nearest_building_when_point_outside_all():
+    # Point at (LAT0, LON0) is outside both buildings. A small building sits ~55m
+    # north; a larger one ~220m north. We must pick the NEAREST, not the largest.
+    near = _square(8.0, center_lat=LAT0 + 0.0005)
+    far_big = _square(40.0, center_lat=LAT0 + 0.0020)
+    result = _provider(polygons=[far_big, near]).estimate(
+        Decimal(str(LAT0)), Decimal(str(LON0)), Decimal("1200")
+    )
+    expected = [[round(la, 6), round(lo, 6)] for la, lo in near]
+    assert result.raw_response["roof_polygon"] == expected

@@ -29,6 +29,12 @@ def polygon_area_m2(points: list[tuple[float, float]]) -> float:
     return abs(area2) / 2.0
 
 
+def polygon_centroid(points: list[tuple[float, float]]) -> tuple[float, float]:
+    """Average of the ring's vertices, as (lat, lon)."""
+    n = len(points)
+    return (sum(p[0] for p in points) / n, sum(p[1] for p in points) / n)
+
+
 def point_in_polygon(point: tuple[float, float], polygon: list[tuple[float, float]]) -> bool:
     """Ray casting in (lat, lon) degree space (lon = x, lat = y)."""
     if len(polygon) < 3:
